@@ -6,7 +6,7 @@ The original Connect Four game was independently solved in 1988 by James Allen t
 
 Hasbro introduced four new variants to Connect Four in 2009: PopOut, Pop 10, Power Up, and Five-in-a-Row. Jukka Pekkala solved PopOut in 2014 with comprehensive computer analysis in his master's thesis. He states PopOut gave the first player a significant advantage allowing it to win quicker. The remaining three remains unsolved, but I did solved Five-in-a-Row to a draw.
 
-My program and my Connect Four skills confirmed his analysis, and with perfect play, the first player will win in at most eleven moves. I compiled and inspected the source code of his program and adapted it to Four the Win!. All code is original, but the algorithms used are not since they are profoundly relevant for a game solver.
+My program and my Connect Four skills confirmed his analysis, and with perfect play, the first player will win in at most eleven moves. I compiled and inspected the source code of his program and adapted it to Four the Win!. Most code is original, but the algorithms used are not since they are profoundly relevant for a game solver. The only unoriginal code deals with 128-bit integers for boards too large to fit in 64 bits. I took the code from this GitHub, translated from C++ to C, and integrated it.
 
 ## Features
 Four the Win! can solve the original game as well as all four Hasbro variants mentioned above. It is impossible to play against it because that is not my intention.
