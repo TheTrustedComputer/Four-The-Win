@@ -38,4 +38,4 @@ I do not own an Apple computer. If you have a Mac and wanted to try Four the Win
 To be announced.
 
 ## Contribution and Bug Reporting
-Four the Win! is in alpha and is mostly working as I intended. If you find any bugs in my program, please open an issue, and I will try to debug them. It is not guareteed I will fix all given issues in a timely manner.
+Four the Win! is in alpha and is mostly working as intended. Feel free to contribute since I am still working on this project although slowly. If you find any bugs in my program, please open an issue, and I will try to debug them. It is not guareteed I will fix all given issues in a timely manner.
