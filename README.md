@@ -32,10 +32,10 @@ and enjoy!
 
 Windows users need at least Visual Studio 2019 Community to compile Four the Win! on their platform. Instructions on that later.
 
-I do not own an Apple computer. If you have a Mac and wanted to try Four the Win!, then please post compilation instructions for those users on the issue tab.
+I do not own an Apple computer. If you have a Mac and wanted to try out Four the Win!, then please post compilation instructions for those users on the issue tab.
 
 ## Arguments
 To be announced.
 
 ## Contribution and Bug Reporting
-Four the Win! is in alpha and is mostly working as intended. Feel free to contribute since I am still working on this project although slowly. If you find any bugs in my program, please open an issue, and I will try to debug them. It is not guareteed I will fix all given issues in a timely manner.
+Four the Win! is in alpha and is mostly working as intended. Feel free to contribute since I am still working on this project although slowly. If you find any bugs in my program, please open an issue, and I will attempt to debug them. It is not guareteed I will fix all given issues in a timely manner.
