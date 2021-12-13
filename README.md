@@ -1,5 +1,5 @@
 # Four the Win!
-Four the Win! is a versatile Connect Four C program capable of solving different variants, including Hasbro ones.
+Four the Win! is a versatile Connect Four C program capable of solving different variants.
 
 ## Background
 The original Connect Four game was independently solved in 1988 by James Allen then Victor Allis. The player who starts is guaranteed to win in less than twenty-one moves. The winning strategy is adequately documented and can help improve any player's skill in the game.
