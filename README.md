@@ -15,7 +15,7 @@ It utilizes bitboards to represent Connect Four which is much more efficient in 
 
 Currently, it uses negamax with alpha-beta pruning, static move ordering, iterative deepening, and transposition tables to obtain the optimum solution given a state. Opening databases are partially implemented and are inefficient for large databases at the moment.
 
-The playing field is not restricted to the standard seven columns by six rows. It can accept sizes from 4x4 to about 11x10 due to how finite bitboards works, but the maximum is 16. By default, Four the Win! operates on the standard size without arguments. More details about how to use them are under the Arguments heading. 
+The playing field is not restricted to the standard seven columns by six rows. It can accept sizes from 4x4 to about 11x10 due to how integers work, but the maximum input size is 16. By default, Four the Win! operates on the standard size without arguments. More details about how to use them are under the Arguments heading. 
 
 ## Compilation Instructions
 I have attached a Makefile for easy compiling on Linux as any C99+ compiler and GNU Make are the only dependencies required. I recommend GCC for compilation. Open a terminal emulator of your choice and type the following commands below
