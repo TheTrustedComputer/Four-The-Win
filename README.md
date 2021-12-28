@@ -13,7 +13,7 @@ Four the Win! can solve the original game as well as all four Hasbro variants me
 
 It utilizes bitboards to represent Connect Four which is much more efficient in manipulation than arrays. Additionally, pointers and unions are applied to reduce the memory footprint for this data structure.
 
-Currently, it uses negamax with alpha-beta pruning, static move ordering, and transposition tables to obtain the optimum solution given a state. Opening databases are partially implemented and are inefficient for large databases at the moment.
+Currently, it uses negamax with alpha-beta pruning, static move ordering, iterative deepening, and transposition tables to obtain the optimum solution given a state. Opening databases are partially implemented and are inefficient for large databases at the moment.
 
 The playing field is not restricted to the standard seven columns by six rows. It can accept sizes from 4x4 to about 11x10 due to how finite bitboards works, but the maximum is 16. By default, Four the Win! operates on the standard size without arguments. More details about how to use them are under the Arguments heading. 
 
