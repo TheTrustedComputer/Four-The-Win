@@ -19,18 +19,18 @@
 #define ALPHABETA_H
 
 // Static string constants to know which side wins or loses
-static const char WIN_TEXT[] = "WIN ";
-static const char LOSS_TEXT[] = "LOSS ";
-static const char DRAW_TEXT[] = "DRAW ";
+static const char WIN_TEXT[] = "WIN";
+static const char LOSS_TEXT[] = "LOSS";
+static const char DRAW_TEXT[] = "DRAW";
 static const char NONE_TEXT[] = "-- ";
-static const char SEARCHING_STRING[] = "Searching for a result at depth %d...\n";
+static const char SEARCHING_STRING[] = "\rSolving...%d\r";
 static const char FOUND_STRING[] = "Result found!\n";
 static const char NOT_FOUND_STRING[] = "Result not found under %d %s; a draw is assumed.\n";
-static const char REPETITION_STRING[] = "Encountered a move repetition during search.\n";
+static const char REPETITION_STRING[] = "Encountered move repetition";
 
 // Some of the few constants used for negamax
 enum AlphaBetaResult {
-	DRAW, DRAW_OR_WIN, PLAYER_PROGRESS, PLAYER_WIN
+	DRAW, DRAW_WIN, IN_PROGRESS, PLAYER_WIN
 };
 
 // Custom defined literals for the result character in the Result data structure
@@ -70,8 +70,9 @@ typedef struct {
 
 /*
 	Structure for sorting move values of a given position. It does insertion sort after every addition as this sorting algorithm processes best when the input is sorted.
+	Used in Pop Ten; in this case, pop moves containing discs part of a Connect Four are tried first than those that do not
 */
-typedef struct {
+typedef struct MoveSorter {
 	struct MoveSorter_Entries { int move, score; } *moveEntries;
 	uint8_t size;
 } MoveSorter;
@@ -86,24 +87,26 @@ int AlphaBeta_negamax_popout(ConnectFour*, int, int, int);				// An alpha-beta P
 int AlphaBeta_negamax_powerup(ConnectFour*, int, int, int);
 int AlphaBeta_negamax_popten(ConnectFour*, int, int, int);
 
-void AlphaBeta_normal_getMoveScores(ConnectFour*, Result*, bool);
-void AlphaBeta_popout_getMoveScores(ConnectFour*, Result*, bool);
-void AlphaBeta_popten_getMoveScores(ConnectFour*, Result*, bool);
-int AlphaBeta_normal_getBestMove(ConnectFour*, Result*, bool);
-int AlphaBeta_popout_getBestMove(ConnectFour*, Result*, bool);
-int AlphaBeta_popten_getBestMove(ConnectFour*, Result*, bool);
+void AlphaBeta_normal_getMoveScores(ConnectFour*, Result*, Result*, bool);
+void AlphaBeta_popout_getMoveScores(ConnectFour*, Result*, Result*, bool);
+void AlphaBeta_powerup_getMoveScores(ConnectFour*, Result*, Result*, bool);
+void AlphaBeta_popten_getMoveScores(ConnectFour*, Result*, Result*, bool);
+int AlphaBeta_normal_getBestMove(ConnectFour*, Result*, Result*, bool);
+int AlphaBeta_popout_getBestMove(ConnectFour*, Result*, Result*, bool);
+int AlphaBeta_powerup_getBestMove(ConnectFour*, Result*, Result*, bool);
+int AlphaBeta_popten_getBestMove(ConnectFour*, Result*, Result*, bool);
 void AlphaBeta_normal_printPV(ConnectFour*);
 void AlphaBeta_popout_printPV(ConnectFour*);
 
-Result AlphaBeta_normal_solve(ConnectFour*);
-Result AlphaBeta_popout_solve(ConnectFour*);
-Result AlphaBeta_powerup_solve(ConnectFour*);
-Result AlphaBeta_popten_solve(ConnectFour*);
+Result AlphaBeta_normal_solve(ConnectFour*, const bool);
+Result AlphaBeta_popout_solve(ConnectFour*, const bool);
+Result AlphaBeta_powerup_solve(ConnectFour*, const bool);
+Result AlphaBeta_popten_solve(ConnectFour*, const bool);
 
 void MoveSorter_addToEntry(MoveSorter*, const int, const int);
 int MoveSorter_obtainNextMove(MoveSorter*);
 
-void Result_print(Result*);
+void Result_print(Result*, Result*);
 void Result_increment(Result*);
 void Result_normal_reverse(Result*);
 void Result_popout_reverse(Result*);

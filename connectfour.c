@@ -48,6 +48,7 @@ void ConnectFour_setSizeAndVariant(unsigned newColumns, unsigned newRows, unsign
 	ROWS = newRows;
 	COLUMNS_M1 = COLUMNS - 1u;
 	COLUMNS_X2 = COLUMNS << 1u;
+	COLUMNS_X2_P1 = COLUMNS_X2 + 1u;
 	COLUMNS_D2 = COLUMNS >> 1u;
 	ROWS_M1 = ROWS - 1u;
 	ROWS_P1 = ROWS + 1u;
@@ -56,8 +57,8 @@ void ConnectFour_setSizeAndVariant(unsigned newColumns, unsigned newRows, unsign
 	switch (GAME_VARIANT) {
 	case POPOUT_VARIANT:
 	case POPTEN_VARIANT:
-		HISTORYSIZE = 21u;
-		MOVESIZE = HISTORYSIZE + AREA + (AREA >> 1u);
+		HISTORYSIZE = 33u;
+		MOVESIZE = (GAME_VARIANT == POPOUT_VARIANT) ? HISTORYSIZE + (AREA << 1u) : (HISTORYSIZE << 4u) + (AREA << 5u);
 		break;
 	case POWERUP_VARIANT:
 		MOVESIZE = AREA + (AREA << 1u);
@@ -95,28 +96,6 @@ void ConnectFour_initialize(ConnectFour *cf) {
 		exit(EXIT_FAILURE);
 	}
 	switch (GAME_VARIANT) {
-	case POPOUT_VARIANT:
-		if (!(cf->history = malloc(sizeof(Position) * HISTORYSIZE))) {
-			fprintf(stderr, "Could not handle memory for the position history.");
-			exit(EXIT_FAILURE);
-		}
-	case FIVEINAROW_VARIANT:
-	case NORMAL_VARIANT:
-		if (!(cf->moves = malloc(sizeof(uint8_t) * MOVESIZE))) {
-			fprintf(stderr, "Could not use memory for storing played moves.");
-			exit(EXIT_FAILURE);
-		}
-		break;
-	case POWERUP_VARIANT:
-		if (!(cf->pc = malloc(sizeof(PowerCheckers)))) {
-			fprintf(stderr, "Could not make room in memory for the Power Checkers bitboard.");
-			exit(EXIT_FAILURE);
-		}
-		if (!(cf->pum = malloc(sizeof(PowerUpMove) * MOVESIZE))) {
-			fprintf(stderr, "Could not register memory for Power Up moves.");
-			exit(EXIT_FAILURE);
-		}
-		break;
 	case POPTEN_VARIANT:
 	{
 		if (!(cf->ptm = malloc(sizeof(PopTenMove) * (MOVESIZE + 1ull)))) {
@@ -137,6 +116,28 @@ void ConnectFour_initialize(ConnectFour *cf) {
 			}
 		}
 	}
+	case POPOUT_VARIANT:
+		if (!(cf->history = malloc(sizeof(Position) * HISTORYSIZE))) {
+			fprintf(stderr, "Could not handle memory for the position history.");
+			exit(EXIT_FAILURE);
+		}
+	case FIVEINAROW_VARIANT:
+	case NORMAL_VARIANT:
+		if ((GAME_VARIANT != POPTEN_VARIANT) && !(cf->moves = malloc(sizeof(uint8_t) * MOVESIZE))) {
+			fprintf(stderr, "Could not use memory for storing played moves.");
+			exit(EXIT_FAILURE);
+		}
+		break;
+	case POWERUP_VARIANT:
+		if (!(cf->pc = malloc(sizeof(PowerCheckers)))) {
+			fprintf(stderr, "Could not make room in memory for the Power Checkers bitboard.");
+			exit(EXIT_FAILURE);
+		}
+		if (!(cf->pum = malloc(sizeof(PowerUpMove) * MOVESIZE))) {
+			fprintf(stderr, "Could not register memory for Power Up moves.");
+			exit(EXIT_FAILURE);
+		}
+		break;
 	}
 	ConnectFour_reset(cf, false);
 }
@@ -155,6 +156,9 @@ void ConnectFour_reset(ConnectFour *cf, const bool keepBitmaps) {
 		cf->moves[0] = '\xff';
 		break;
 	case POWERUP_VARIANT:
+		for (i = 0; i < MOVESIZE; ++i) {
+			cf->pum[i].status = POWERUP_DROP_NORMAL_OR_ANVIL;
+		}
 		cf->pc->anvil = cf->pc->bomb = cf->pc->wall = cf->pc->x2 = 0;
 		cf->playedPowerCheckers = 0;
 		userPowerUpDiskType = DROPTYPE_NORMAL;
@@ -166,29 +170,29 @@ void ConnectFour_reset(ConnectFour *cf, const bool keepBitmaps) {
 }
 
 void ConnectFour_popten_reset(ConnectFour *cf, const bool bitmap) {
-	unsigned i;
+	unsigned c;
 	popTenFlags = POPTEN_DROP;
 	cf->ptm->size = 1;
 	cf->ptm->pops[0] = popTenFlags;
 	if (!bitmap) {
-		unsigned j, k, l, column, remainingColumns, *setupColumns = malloc(sizeof(unsigned) * COLUMNS);
-		init_genrand64((unsigned long long)time(NULL));
+		unsigned d, e, f, column, remainingColumns, *setupColumns = malloc(sizeof(unsigned) * COLUMNS);
+		init_genrand64((unsigned long long)(time(NULL) ^ getpid()));
 		cf->collectedDisks = 0;
-		for (i = 0; i < COLUMNS; ++i) {
-			cf->height[i] = ROWS_P1 * i;
+		for (c = 0; c < COLUMNS; ++c) {
+			cf->height[c] = ROWS_P1 * c;
 		}
-		for (i = 0; i < ROWS; ++i) {
-			for (j = 0; j < COLUMNS; ++j) {
-				setupColumns[j] = j;
+		for (c = 0; c < ROWS; ++c) {
+			for (d = 0; d < COLUMNS; ++d) {
+				setupColumns[d] = d;
 			}
 			remainingColumns = COLUMNS;
-			for (j = 0; j < COLUMNS; ++j) {
+			for (d = 0; d < COLUMNS; ++d) {
 				column = setupColumns[genrand64_int64() % (unsigned long long)remainingColumns];
 				cf->board[cf->plyNumber++ & 1u] |= (Position)1ull << cf->height[column]++;
-				for (k = 0;; ++k) {
-					if (setupColumns[k] == column) {
-						for (l = k; l < remainingColumns - 1; ++l) {
-							setupColumns[l] = setupColumns[l + 1];
+				for (e = 0;; ++e) {
+					if (setupColumns[e] == column) {
+						for (f = e; f < remainingColumns - 1; ++f) {
+							setupColumns[f] = setupColumns[f + 1];
 						}
 						--remainingColumns;
 						break;
@@ -206,8 +210,8 @@ void ConnectFour_popten_reset(ConnectFour *cf, const bool bitmap) {
 		cf->plyNumber = 0;
 		cf->board[0] = popTenBitmap[0];
 		cf->board[1] = popTenBitmap[1];
-		for (i = 0; i < COLUMNS; ++i) {
-			cf->height[i] = ROWS_P1 * i + ROWS;
+		for (c = 0; c < COLUMNS; ++c) {
+			cf->height[c] = ROWS_P1 * c + ROWS;
 		}
 	}
 }
@@ -291,36 +295,36 @@ void ConnectFour_printBoard(const ConnectFour *cf) {
 				else if (bit & cf->board[0] & cf->pc->bomb) {
 #ifdef _WIN32
 					SetConsoleTextAttribute(handle, 0xe6);
-					printf("BO");
+					printf("BM");
 #elif defined(__unix__)
-					printf("\e[7;1;33;43mBO\e[0m");
+					printf("\e[7;1;33;43mBM\e[0m");
 #endif
 					continue;
 				}
 				else if (bit & cf->board[1] & cf->pc->bomb) {
 #ifdef _WIN32
 					SetConsoleTextAttribute(handle, 0xc4);
-					printf("BO");
+					printf("BM");
 #elif defined(__unix__)
-					printf("\e[7;1;31;41mBO\e[0m");
+					printf("\e[7;1;31;41mBM\e[0m");
 #endif
 					continue;
 				}
 				else if (bit & cf->board[0] & cf->pc->wall) {
 #ifdef _WIN32
 					SetConsoleTextAttribute(handle, 0xe6);
-					printf("WA");
+					printf("WL");
 #elif defined(__unix__)
-					printf("\e[7;1;33;43mWA\e[0m");
+					printf("\e[7;1;33;43mWL\e[0m");
 #endif
 					continue;
 				}
 				else if (bit & cf->board[1] & cf->pc->wall) {
 #ifdef _WIN32
 					SetConsoleTextAttribute(handle, 0xc4);
-					printf("WA");
+					printf("WL");
 #elif defined(__unix__)
-					printf("\e[7;1;31;41mWA\e[0m");
+					printf("\e[7;1;31;41mWL\e[0m");
 #endif
 					continue;
 				}
@@ -382,7 +386,7 @@ void ConnectFour_printBoard(const ConnectFour *cf) {
 #endif
 	switch (GAME_VARIANT) {
 	case POPTEN_VARIANT:
-		printf("\n%c-%d %c-%d", PLAYER1_NAME[0], cf->collectedDisks & 0x0f, PLAYER2_NAME[0], (cf->collectedDisks & 0xf0) >> 4);
+		printf("\n%c%d %c%d", PLAYER1_NAME[0], ConnectFour_popten_getPoppedDisks(cf, false), PLAYER2_NAME[0], ConnectFour_popten_getPoppedDisks(cf, true));
 	}
 	puts("");
 }
@@ -477,16 +481,22 @@ uint8_t ConnectFour_repeatIndex(const uint8_t index) {
 }
 
 bool ConnectFour_repetition(const ConnectFour *cf) {
-	uint8_t first, second, third, fourth, fifth;
+	uint8_t first, second, third, fourth, fifth, sixth, seventh, eighth;
 	Position hash = ConnectFour_getHashKey(cf), mirrorHash = ConnectFour_reverse(hash);
 	first = ConnectFour_previousHistory(cf->historyIndex);
 	second = ConnectFour_repeatIndex(first);
 	third = ConnectFour_repeatIndex(second);
 	fourth = ConnectFour_repeatIndex(third);
 	fifth = ConnectFour_repeatIndex(fourth);
-	return (hash == cf->history[first] && hash == cf->history[second] && hash == cf->history[third] && hash == cf->history[fourth] && hash == cf->history[fifth]) ||
-		(hash == cf->history[first] && mirrorHash == cf->history[second] && hash == cf->history[third] && mirrorHash == cf->history[fourth] && hash == cf->history[fifth]) ||
-		(mirrorHash == cf->history[first] && hash == cf->history[second] && mirrorHash == cf->history[third] && hash == cf->history[fourth] && mirrorHash == cf->history[fifth]);
+	sixth = ConnectFour_repeatIndex(fifth);
+	seventh = ConnectFour_repeatIndex(sixth);
+	eighth = ConnectFour_repeatIndex(seventh);
+	return (hash == cf->history[first] && hash == cf->history[second] && hash == cf->history[third] && hash == cf->history[fourth] &&
+			 hash == cf->history[fifth] && hash == cf->history[sixth] && hash == cf->history[seventh] && hash == cf->history[eighth]) ||
+		(hash == cf->history[first] && mirrorHash == cf->history[second] && hash == cf->history[third] && mirrorHash == cf->history[fourth] &&
+		 hash == cf->history[fifth] && mirrorHash == cf->history[sixth] && hash == cf->history[seventh] && mirrorHash == cf->history[eighth]) ||
+		(mirrorHash == cf->history[first] && hash == cf->history[second] && mirrorHash == cf->history[third] && hash == cf->history[fourth] &&
+		 mirrorHash == cf->history[fifth] && hash == cf->history[sixth] && mirrorHash == cf->history[seventh] && hash == cf->history[eighth]);
 }
 
 bool ConnectFour_gameOver(const ConnectFour *cf) {
@@ -494,7 +504,7 @@ bool ConnectFour_gameOver(const ConnectFour *cf) {
 	case POPOUT_VARIANT:
 		return ConnectFour_connection(cf->board[0]) || ConnectFour_connection(cf->board[1]) || cf->plyNumber >= MOVESIZE;
 	case POPTEN_VARIANT:
-		return ConnectFour_hasTenDisks(cf);
+		return ConnectFour_hasTenDisks(cf) || cf->plyNumber >= MOVESIZE;
 	default:
 		return ConnectFour_connection(cf->board[0]) || ConnectFour_connection(cf->board[1]) || cf->plyNumber >= AREA;
 	}
@@ -593,10 +603,22 @@ void ConnectFour_popout_undoMoveRepetition(ConnectFour *cf) {
 
 bool ConnectFour_powerup_drop(ConnectFour *cf, const int COLUMN) {
 	Position dropper = (Position)1ull << cf->height[COLUMN];
-	if (!(dropper & TOP)) {
-		cf->board[cf->plyNumber & 1ull] |= dropper;
-		cf->pum[cf->plyNumber].diskType = DROPTYPE_NORMAL;
-		cf->pum[cf->plyNumber].powerColumn = -1;
+	unsigned turn = cf->plyNumber & 1u;
+	if (((cf->pum[cf->plyNumber].status == POWERUP_DROP_NORMAL_OR_ANVIL) || (cf->pum[cf->plyNumber].status == POWERUP_DROP_WALL) || (cf->pum[cf->plyNumber].status == POWERUP_DROP_X2)) && !(dropper & TOP)) {
+		switch (cf->pum[cf->plyNumber].status) {
+		case POWERUP_DROP_WALL:
+			if (ConnectFour_connection(cf->board[turn] | dropper)) {
+				return false;
+			}
+		case POWERUP_DROP_X2:
+			cf->pum[cf->plyNumber].status |= POWERUP_DROP_NORMAL_OR_ANVIL;
+			break;
+		default:
+			cf->pum[cf->plyNumber].status = POWERUP_DROP_NORMAL_OR_ANVIL;
+			cf->pum[cf->plyNumber].diskType = DROPTYPE_NORMAL;
+			cf->pum[cf->plyNumber].powerColumn = -1;
+		}
+		cf->board[turn] |= dropper;
 		cf->pum[cf->plyNumber++].normalColumn = COLUMN;
 		++cf->height[COLUMN];
 		return true;
@@ -605,38 +627,45 @@ bool ConnectFour_powerup_drop(ConnectFour *cf, const int COLUMN) {
 }
 
 void ConnectFour_powerup_undrop(ConnectFour *cf) {
-	cf->board[cf->plyNumber & 1u] ^= (Position)1ull << --cf->height[cf->pum[--cf->plyNumber].normalColumn];
+	if (cf->pum[cf->plyNumber].status == POWERUP_DROP_NORMAL_OR_ANVIL) {
+		--cf->plyNumber;
+		switch (cf->pum[cf->plyNumber].status) {
+		case POWERUP_DROP_NORMAL_OR_ANVIL | POWERUP_DROP_WALL:
+		case POWERUP_DROP_NORMAL_OR_ANVIL | POWERUP_DROP_X2:
+			cf->pum[cf->plyNumber].status ^= POWERUP_DROP_NORMAL_OR_ANVIL;
+			break;
+		}
+	}
+	cf->board[cf->plyNumber & 1u] ^= (Position)1ull << --cf->height[cf->pum[cf->plyNumber].normalColumn];
 }
 
-bool ConnectFour_powerup_dropAnvil(ConnectFour *cf, const int COLUMN) {
+bool ConnectFour_powerup_dropAnvil(ConnectFour *cf, const int ANVIL_COLUMN) {
 	unsigned turn = cf->plyNumber & 1u;
-	unsigned short anvilCount = turn ? (cf->playedPowerCheckers & PLAYER2_ANVILMASK) >> PLAYER2_ANVILSHIFT : (cf->playedPowerCheckers & PLAYER1_ANVILMASK) >> PLAYER1_ANVILSHIFT;
-	if (anvilCount < 2) {
-		Position dropper = (Position)1ull << cf->height[COLUMN], bottomDisk = (Position)COLUMN * ROWS_P1, falls = ALLCOLS << bottomDisk;
+	uint8_t played = turn ? (cf->playedPowerCheckers & PLAYER2_ANVILBIT) : (cf->playedPowerCheckers & PLAYER1_ANVILBIT);
+	if (cf->pum[cf->plyNumber].status == POWERUP_DROP_NORMAL_OR_ANVIL && !played) {
+		Position dropper = (Position)1ull << cf->height[ANVIL_COLUMN], bottomDisk = (Position)ANVIL_COLUMN * ROWS_P1, falls = ALLCOLS << bottomDisk;
 		if (!(dropper & TOP)) {
-			if ((cf->board[0] | cf->board[1]) & falls & BOT) {
-				anvilColumnNormals[turn][anvilCount][0] = cf->board[0] & falls;
-				anvilColumnNormals[turn][anvilCount][1] = cf->board[1] & falls;
-				anvilColumnAnvils[turn][anvilCount] = cf->pc->anvil & falls;
-				anvilColumnBombs[turn][anvilCount] = cf->pc->bomb & falls;
-				anvilColumnWalls[turn][anvilCount] = cf->pc->wall & falls;
-				anvilColumnX2s[turn][anvilCount] = cf->pc->x2 & falls;
-				cf->board[0] &= ALL ^ falls;
-				cf->board[1] &= ALL ^ falls;
-				cf->pc->anvil &= ALL ^ falls;
-				cf->pc->bomb &= ALL ^ falls;
-				cf->pc->wall &= ALL ^ falls;
-				cf->pc->x2 &= ALL ^ falls;
-				cf->pc->anvil |= (Position)1ull << bottomDisk;
-				cf->board[turn] |= (Position)1ull << bottomDisk;
-				anvilHeight[turn][anvilCount] = cf->height[COLUMN];
-				cf->height[COLUMN] = (unsigned)bottomDisk + 1u;
-				ConnectFour_powerup_incrementPlayedPowerCheckers(cf, DROPTYPE_ANVIL);
-				cf->pum[cf->plyNumber].diskType = DROPTYPE_ANVIL;
-				cf->pum[cf->plyNumber].normalColumn = -1;
-				cf->pum[cf->plyNumber++].powerColumn = COLUMN;
-				return true;
-			}
+			anvilColumnNormals[turn][0] = cf->board[0] & falls;
+			anvilColumnNormals[turn][1] = cf->board[1] & falls;
+			anvilColumnAnvils[turn] = cf->pc->anvil & falls;
+			anvilColumnBombs[turn] = cf->pc->bomb & falls;
+			anvilColumnWalls[turn] = cf->pc->wall & falls;
+			anvilColumnX2s[turn] = cf->pc->x2 & falls;
+			cf->board[0] &= ALL ^ falls;
+			cf->board[1] &= ALL ^ falls;
+			cf->pc->anvil &= ALL ^ falls;
+			cf->pc->bomb &= ALL ^ falls;
+			cf->pc->wall &= ALL ^ falls;
+			cf->pc->x2 &= ALL ^ falls;
+			cf->pc->anvil |= (Position)1ull << bottomDisk;
+			cf->board[turn] |= (Position)1ull << bottomDisk;
+			anvilHeight[turn] = cf->height[ANVIL_COLUMN];
+			cf->height[ANVIL_COLUMN] = (unsigned)bottomDisk + 1u;
+			ConnectFour_powerup_incrementPlayedPowerCheckers(cf, DROPTYPE_ANVIL);
+			cf->pum[cf->plyNumber].diskType = DROPTYPE_ANVIL;
+			cf->pum[cf->plyNumber].normalColumn = -1;
+			cf->pum[cf->plyNumber++].powerColumn = ANVIL_COLUMN;
+			return true;
 		}
 	}
 	return false;
@@ -644,166 +673,159 @@ bool ConnectFour_powerup_dropAnvil(ConnectFour *cf, const int COLUMN) {
 
 void ConnectFour_powerup_undropAnvil(ConnectFour *cf) {
 	unsigned turn = --cf->plyNumber & 1u;
-	unsigned short anvilCount = turn ? (cf->playedPowerCheckers & PLAYER2_ANVILMASK) >> PLAYER2_ANVILSHIFT : (cf->playedPowerCheckers & PLAYER1_ANVILMASK) >> PLAYER1_ANVILSHIFT;
 	cf->board[cf->plyNumber & 1] ^= (Position)1ull << --cf->height[cf->pum[cf->plyNumber].powerColumn];
 	cf->pc->anvil ^= (Position)1ull << cf->height[cf->pum[cf->plyNumber].powerColumn];
-	cf->height[cf->pum[cf->plyNumber].powerColumn] = anvilHeight[turn][--anvilCount];
-	cf->board[0] |= anvilColumnNormals[turn][anvilCount][0];
-	cf->board[1] |= anvilColumnNormals[turn][anvilCount][1];
-	cf->pc->anvil |= anvilColumnAnvils[turn][anvilCount];
-	cf->pc->bomb |= anvilColumnBombs[turn][anvilCount];
-	cf->pc->wall |= anvilColumnWalls[turn][anvilCount];
-	cf->pc->x2 |= anvilColumnX2s[turn][anvilCount];
+	cf->height[cf->pum[cf->plyNumber].powerColumn] = anvilHeight[turn];
+	cf->board[0] |= anvilColumnNormals[turn][0];
+	cf->board[1] |= anvilColumnNormals[turn][1];
+	cf->pc->anvil |= anvilColumnAnvils[turn];
+	cf->pc->bomb |= anvilColumnBombs[turn];
+	cf->pc->wall |= anvilColumnWalls[turn];
+	cf->pc->x2 |= anvilColumnX2s[turn];
 	ConnectFour_powerup_decrementPlayedPowerCheckers(cf);
 }
 
-bool ConnectFour_powerup_dropBomb(ConnectFour *cf, const int BOMB_COLUMN, const int POP_COLUMN) {
+bool ConnectFour_powerup_dropBomb(ConnectFour *cf, const int BOMB_COLUMN) {
 	unsigned turn = cf->plyNumber & 1u;
-	unsigned short bombCount = turn ? (cf->playedPowerCheckers & PLAYER2_BOMBMASK) >> PLAYER2_BOMBSHIFT : (cf->playedPowerCheckers & PLAYER1_BOMBMASK) >> PLAYER1_BOMBSHIFT;
-	if (bombCount < 2) {
+	uint8_t played = turn ? (cf->playedPowerCheckers & PLAYER2_BOMBBIT) : (cf->playedPowerCheckers & PLAYER1_BOMBBIT);
+	if (cf->pum[cf->plyNumber].status == POWERUP_DROP_NORMAL_OR_ANVIL && !played) {
 		Position dropper = (Position)1ull << cf->height[BOMB_COLUMN];
-		if (!(dropper & TOP)) {
+		if (!(dropper & TOP) && (cf->board[!turn] & BOT)) {
 			cf->pc->bomb |= dropper;
 			cf->board[turn] |= dropper;
 			++cf->height[BOMB_COLUMN];
-			if (ConnectFour_powerup_pop(cf, POP_COLUMN, bombCount)) {
-				ConnectFour_powerup_incrementPlayedPowerCheckers(cf, DROPTYPE_BOMB);
-				cf->pum[cf->plyNumber].diskType = DROPTYPE_BOMB;
-				cf->pum[cf->plyNumber].powerColumn = BOMB_COLUMN;
-				cf->pum[cf->plyNumber++].normalColumn = POP_COLUMN;
-				return true;
-			}
-			else {
-				cf->pc->bomb ^= dropper;
-				cf->board[turn] ^= dropper;
-				--cf->height[BOMB_COLUMN];
-			}
+			cf->pum[cf->plyNumber].status = POWERUP_DROP_BOMB;
+			cf->pum[cf->plyNumber].diskType = DROPTYPE_BOMB;
+			cf->pum[cf->plyNumber].normalColumn = -1;
+			cf->pum[cf->plyNumber].powerColumn = BOMB_COLUMN;
+			ConnectFour_powerup_incrementPlayedPowerCheckers(cf, DROPTYPE_BOMB);
+			return true;
 		}
 	}
 	return false;
 }
 
 void ConnectFour_powerup_undropBomb(ConnectFour *cf) {
-	ConnectFour_powerup_unpop(cf);
 	cf->board[cf->plyNumber & 1u] ^= (Position)1ull << --cf->height[cf->pum[cf->plyNumber].powerColumn];
 	cf->pc->bomb ^= (Position)1ull << cf->height[cf->pum[cf->plyNumber].powerColumn];
+	cf->pum[cf->plyNumber].status = POWERUP_DROP_NORMAL_OR_ANVIL;
 	ConnectFour_powerup_decrementPlayedPowerCheckers(cf);
 }
 
-bool ConnectFour_powerup_dropWall(ConnectFour *cf, const int WALL_COLUMN, const int DROP_COLUMN) {
+bool ConnectFour_powerup_dropWall(ConnectFour *cf, const int WALL_COLUMN) {
 	unsigned turn = cf->plyNumber & 1u;
-	unsigned short wallCount = turn ? (cf->playedPowerCheckers & PLAYER2_WALLMASK) >> PLAYER2_WALLSHIFT : (cf->playedPowerCheckers & PLAYER1_WALLMASK) >> PLAYER1_WALLSHIFT;
-	if (wallCount < 2) {
-		Position dropper = (Position)1ull << cf->height[WALL_COLUMN], nextDropper;
+	uint8_t played = turn ? (cf->playedPowerCheckers & PLAYER2_WALLBIT) : (cf->playedPowerCheckers & PLAYER1_WALLBIT);
+	if (cf->pum[cf->plyNumber].status == POWERUP_DROP_NORMAL_OR_ANVIL && !played) {
+		Position dropper = (Position)1ull << cf->height[WALL_COLUMN];
 		if (!((dropper & TOP) || ConnectFour_connection(cf->board[turn] | dropper))) {
 			cf->pc->wall |= dropper;
 			cf->board[turn] |= dropper;
 			++cf->height[WALL_COLUMN];
-			nextDropper = (Position)1ull << cf->height[DROP_COLUMN];
-			if (!((nextDropper & TOP) || ConnectFour_connection(cf->board[turn] | nextDropper))) {
-				ConnectFour_powerup_incrementPlayedPowerCheckers(cf, DROPTYPE_WALL);
-				cf->board[turn] |= nextDropper;
-				cf->pum[cf->plyNumber].diskType = DROPTYPE_WALL;
-				cf->pum[cf->plyNumber].powerColumn = WALL_COLUMN;
-				cf->pum[cf->plyNumber++].normalColumn = DROP_COLUMN;
-				++cf->height[DROP_COLUMN];
-				return true;
-			}
-			else {
-				cf->pc->wall ^= dropper;
-				cf->board[turn] ^= dropper;
-				--cf->height[WALL_COLUMN];
-			}
+			cf->pum[cf->plyNumber].status = POWERUP_DROP_WALL;
+			cf->pum[cf->plyNumber].diskType = DROPTYPE_WALL;
+			cf->pum[cf->plyNumber].powerColumn = WALL_COLUMN;
+			cf->pum[cf->plyNumber].normalColumn = -1;
+			ConnectFour_powerup_incrementPlayedPowerCheckers(cf, DROPTYPE_WALL);
+			return true;
 		}
 	}
 	return false;
 }
 
 void ConnectFour_powerup_undropWall(ConnectFour *cf) {
-	ConnectFour_powerup_undrop(cf);
-	cf->board[cf->plyNumber & 1u] ^= (Position)1ull << --cf->height[cf->pum[cf->plyNumber].powerColumn];
-	cf->pc->wall ^= (Position)1ull << cf->height[cf->pum[cf->plyNumber].powerColumn];
-	ConnectFour_powerup_decrementPlayedPowerCheckers(cf);
+	if (cf->pum[cf->plyNumber].status == POWERUP_DROP_WALL) {
+		cf->board[cf->plyNumber & 1u] ^= (Position)1ull << --cf->height[cf->pum[cf->plyNumber].powerColumn];
+		cf->pc->wall ^= (Position)1ull << cf->height[cf->pum[cf->plyNumber].powerColumn];
+		cf->pum[cf->plyNumber].status = POWERUP_DROP_NORMAL_OR_ANVIL;
+		ConnectFour_powerup_decrementPlayedPowerCheckers(cf);
+	}
+	else {
+		ConnectFour_powerup_undrop(cf);
+	}
 }
 
-bool ConnectFour_powerup_dropX2(ConnectFour *cf, const int X2_COLUMN, const int DROP_COLUMN) {
+bool ConnectFour_powerup_dropX2(ConnectFour *cf, const int X2_COLUMN) {
 	unsigned turn = cf->plyNumber & 1u;
-	unsigned short x2Count = turn ? (cf->playedPowerCheckers & PLAYER2_X2MASK) >> PLAYER2_X2SHIFT : (cf->playedPowerCheckers & PLAYER1_X2MASK) >> PLAYER1_X2SHIFT;
-	if (x2Count < 2) {
-		Position dropper = (Position)1ull << cf->height[X2_COLUMN], nextDropper;
+	uint8_t played = turn ? (cf->playedPowerCheckers & PLAYER2_X2BIT) : (cf->playedPowerCheckers & PLAYER1_X2BIT);
+	if (cf->pum[cf->plyNumber].status == POWERUP_DROP_NORMAL_OR_ANVIL && !played) {
+		Position dropper = (Position)1ull << cf->height[X2_COLUMN];
 		if (!(dropper & TOP)) {
 			cf->pc->x2 |= dropper;
 			cf->board[turn] |= dropper;
 			++cf->height[X2_COLUMN];
-			nextDropper = (Position)1ull << cf->height[DROP_COLUMN];
-			if (!(nextDropper & TOP)) {
-				ConnectFour_powerup_incrementPlayedPowerCheckers(cf, DROPTYPE_X2);
-				cf->board[turn] |= nextDropper;
-				cf->pum[cf->plyNumber].diskType = DROPTYPE_X2;
-				cf->pum[cf->plyNumber].powerColumn = X2_COLUMN;
-				cf->pum[cf->plyNumber++].normalColumn = DROP_COLUMN;
-				++cf->height[DROP_COLUMN];
-				return true;
-			}
-			else {
-				cf->pc->x2 ^= dropper;
-				cf->board[turn] ^= dropper;
-				--cf->height[X2_COLUMN];
-			}
+			cf->pum[cf->plyNumber].status = POWERUP_DROP_X2;
+			cf->pum[cf->plyNumber].diskType = DROPTYPE_X2;
+			cf->pum[cf->plyNumber].powerColumn = X2_COLUMN;
+			cf->pum[cf->plyNumber].normalColumn = -1;
+			ConnectFour_powerup_incrementPlayedPowerCheckers(cf, DROPTYPE_X2);
+			return true;
 		}
 	}
 	return false;
 }
 
 void ConnectFour_powerup_undropX2(ConnectFour *cf) {
-	ConnectFour_powerup_undrop(cf);
-	cf->board[cf->plyNumber & 1] ^= (Position)1ull << --cf->height[cf->pum[cf->plyNumber].powerColumn];
-	cf->pc->x2 ^= (Position)1ull << cf->height[cf->pum[cf->plyNumber].powerColumn];
-	ConnectFour_powerup_decrementPlayedPowerCheckers(cf);
+	if (cf->pum[cf->plyNumber].status == POWERUP_DROP_X2) {
+		cf->board[cf->plyNumber & 1u] ^= (Position)1ull << --cf->height[cf->pum[cf->plyNumber].powerColumn];
+		cf->pc->x2 ^= (Position)1ull << cf->height[cf->pum[cf->plyNumber].powerColumn];
+		cf->pum[cf->plyNumber].status = POWERUP_DROP_NORMAL_OR_ANVIL;
+		ConnectFour_powerup_decrementPlayedPowerCheckers(cf);
+	}
+	else {
+		ConnectFour_powerup_undrop(cf);
+	}
 }
 
-bool ConnectFour_powerup_pop(ConnectFour *cf, const int COLUMN, const unsigned short BOMB_COUNT) {
-	Position bottomDisk = (Position)COLUMN * ROWS_P1, falls = COLS << bottomDisk, popped = (Position)1ull << bottomDisk;
-	unsigned opponentTurn = !(cf->plyNumber & 1u);
-	if (cf->board[opponentTurn] & cf->pc->anvil & popped) {
-		bombPoppedType[BOMB_COUNT][opponentTurn] = DROPTYPE_ANVIL;
-		goto popper;
+bool ConnectFour_powerup_pop(ConnectFour *cf, const int COLUMN) {
+	if (cf->pum[cf->plyNumber].status == POWERUP_DROP_BOMB) {
+		//ConnectFour_printBoard(cf);
+		Position bottomDisk = (Position)COLUMN * ROWS_P1, falls = COLS << bottomDisk, popped = (Position)1ull << bottomDisk;
+		unsigned turn = (cf->plyNumber & 1u), opponentTurn = !turn;
+		//const unsigned short BOMB_COUNT = turn ? (cf->playedPowerCheckers & PLAYER2_BOMBMASK) >> PLAYER2_BOMBSHIFT : (cf->playedPowerCheckers & PLAYER1_BOMBMASK) >> PLAYER1_BOMBSHIFT;
+		if (cf->board[opponentTurn] & cf->pc->anvil & popped) {
+			bombPoppedType[opponentTurn] = DROPTYPE_ANVIL;
+			goto popper;
+		}
+		if (cf->board[opponentTurn] & cf->pc->bomb & popped) {
+			bombPoppedType[opponentTurn] = DROPTYPE_BOMB;
+			goto popper;
+		}
+		if (cf->board[opponentTurn] & cf->pc->wall & popped) {
+			bombPoppedType[opponentTurn] = DROPTYPE_WALL;
+			goto popper;
+		}
+		if (cf->board[opponentTurn] & cf->pc->x2 & popped) {
+			bombPoppedType[opponentTurn] = DROPTYPE_X2;
+			goto popper;
+		}
+		if (cf->board[opponentTurn] & popped) {
+			bombPoppedType[opponentTurn] = DROPTYPE_NORMAL;
+			goto popper;
+		}
+		goto invalid;
+	popper:
+		cf->board[0] = ((cf->board[0] & (ALL ^ falls)) | ((cf->board[0] & falls) >> 1ull)) & ALL;
+		cf->board[1] = ((cf->board[1] & (ALL ^ falls)) | ((cf->board[1] & falls) >> 1ull)) & ALL;
+		cf->pc->anvil = ((cf->pc->anvil & (ALL ^ falls)) | ((cf->pc->anvil & falls) >> 1ull)) & ALL;
+		cf->pc->bomb = ((cf->pc->bomb & (ALL ^ falls)) | ((cf->pc->bomb & falls) >> 1ull)) & ALL;
+		cf->pc->wall = ((cf->pc->wall & (ALL ^ falls)) | ((cf->pc->wall & falls) >> 1ull)) & ALL;
+		cf->pc->x2 = ((cf->pc->x2 & (ALL ^ falls)) | ((cf->pc->x2 & falls) >> 1ull)) & ALL;
+		--cf->height[COLUMN];
+		cf->pum[cf->plyNumber].status |= POWERUP_DROP_NORMAL_OR_ANVIL;
+		cf->pum[cf->plyNumber++].normalColumn = COLUMN;
+		//ConnectFour_printBoard(cf);
+		return true;
 	}
-	if (cf->board[opponentTurn] & cf->pc->bomb & popped) {
-		bombPoppedType[BOMB_COUNT][opponentTurn] = DROPTYPE_BOMB;
-		goto popper;
-	}
-	if (cf->board[opponentTurn] & cf->pc->wall & popped) {
-		bombPoppedType[BOMB_COUNT][opponentTurn] = DROPTYPE_WALL;
-		goto popper;
-	}
-	if (cf->board[opponentTurn] & cf->pc->x2 & popped) {
-		bombPoppedType[BOMB_COUNT][opponentTurn] = DROPTYPE_X2;
-		goto popper;
-	}
-	if (cf->board[opponentTurn] & popped) {
-		bombPoppedType[BOMB_COUNT][opponentTurn] = DROPTYPE_NORMAL;
-		goto popper;
-	}
-	goto invalid;
-popper:
-	cf->board[0] = ((cf->board[0] & (ALL ^ falls)) | ((cf->board[0] & falls) >> 1ull)) & ALL;
-	cf->board[1] = ((cf->board[1] & (ALL ^ falls)) | ((cf->board[1] & falls) >> 1ull)) & ALL;
-	cf->pc->anvil = ((cf->pc->anvil & (ALL ^ falls)) | ((cf->pc->anvil & falls) >> 1ull)) & ALL;
-	cf->pc->bomb = ((cf->pc->bomb & (ALL ^ falls)) | ((cf->pc->bomb & falls) >> 1ull)) & ALL;
-	cf->pc->wall = ((cf->pc->wall & (ALL ^ falls)) | ((cf->pc->wall & falls) >> 1ull)) & ALL;
-	cf->pc->x2 = ((cf->pc->x2 & (ALL ^ falls)) | ((cf->pc->x2 & falls) >> 1ull)) & ALL;
-	--cf->height[COLUMN];
-	return true;
 invalid:
 	return false;
 }
 
 void ConnectFour_powerup_unpop(ConnectFour *cf) {
 	unsigned turn = --cf->plyNumber & 1u, opponentTurn = !turn;
-	unsigned short bombCount = turn ? (cf->playedPowerCheckers & PLAYER2_BOMBMASK) >> PLAYER2_BOMBSHIFT : (cf->playedPowerCheckers & PLAYER1_BOMBMASK) >> PLAYER1_BOMBSHIFT;
+	//nsigned short bombCount = turn ? (cf->playedPowerCheckers & PLAYER2_BOMBMASK) >> PLAYER2_BOMBSHIFT : (cf->playedPowerCheckers & PLAYER1_BOMBMASK) >> PLAYER1_BOMBSHIFT;
 	uint8_t popper = cf->pum[cf->plyNumber].normalColumn;
 	Position bottomDisk = (Position)popper * ROWS_P1, falls = COLS << bottomDisk;
+	cf->pum[cf->plyNumber].status ^= POWERUP_DROP_NORMAL_OR_ANVIL;
 	cf->board[0] = (cf->board[0] & (ALL ^ falls)) | (cf->board[0] & falls) << 1ull;
 	cf->board[1] = (cf->board[1] & (ALL ^ falls)) | (cf->board[1] & falls) << 1ull;
 	cf->pc->anvil = (cf->pc->anvil & (ALL ^ falls)) | (cf->pc->anvil & falls) << 1ull;
@@ -812,7 +834,7 @@ void ConnectFour_powerup_unpop(ConnectFour *cf) {
 	cf->pc->x2 = (cf->pc->x2 & (ALL ^ falls)) | (cf->pc->x2 & falls) << 1ull;
 	++cf->height[popper];
 	cf->board[opponentTurn] |= (Position)1ull << bottomDisk;
-	switch (bombPoppedType[--bombCount][opponentTurn]) {
+	switch (bombPoppedType[opponentTurn]) {
 	case DROPTYPE_ANVIL:
 		cf->pc->anvil|= (Position)1ull << bottomDisk;
 		break;
@@ -825,57 +847,66 @@ void ConnectFour_powerup_unpop(ConnectFour *cf) {
 	case DROPTYPE_X2:
 		cf->pc->x2 |= (Position)1ull << bottomDisk;
 	}
+	//ConnectFour_printBoard(cf);
 }
 
 void ConnectFour_powerup_incrementPlayedPowerCheckers(ConnectFour *cf, const int TYPE) {
-	unsigned short anvils, bombs, walls, x2s, others;
+	//unsigned short anvils, bombs, walls, x2s, others;
 	unsigned turn = cf->plyNumber & 1u;
 	switch (TYPE) {
 	case DROPTYPE_ANVIL:
-		anvils = turn ? (cf->playedPowerCheckers & PLAYER2_ANVILMASK) >> PLAYER2_ANVILSHIFT : (cf->playedPowerCheckers & PLAYER1_ANVILMASK) >> PLAYER1_ANVILSHIFT;
+		/*anvils = turn ? (cf->playedPowerCheckers & PLAYER2_ANVILMASK) >> PLAYER2_ANVILSHIFT : (cf->playedPowerCheckers & PLAYER1_ANVILMASK) >> PLAYER1_ANVILSHIFT;
 		others = turn ? cf->playedPowerCheckers & ~PLAYER2_ANVILMASK : cf->playedPowerCheckers & ~PLAYER1_ANVILMASK;
-		cf->playedPowerCheckers = others | (++anvils << (turn ? PLAYER2_ANVILSHIFT : PLAYER1_ANVILSHIFT));
+		cf->playedPowerCheckers = others | (++anvils << (turn ? PLAYER2_ANVILSHIFT : PLAYER1_ANVILSHIFT));*/
+		cf->playedPowerCheckers |= 1 << (turn ? PLAYER2_ANVILSHIFT : PLAYER1_ANVILSHIFT);
 		break;
 	case DROPTYPE_BOMB:
-		bombs = turn ? (cf->playedPowerCheckers & PLAYER2_BOMBMASK) >> PLAYER2_BOMBSHIFT : (cf->playedPowerCheckers & PLAYER1_BOMBMASK) >> PLAYER1_BOMBSHIFT;
+		/*bombs = turn ? (cf->playedPowerCheckers & PLAYER2_BOMBMASK) >> PLAYER2_BOMBSHIFT : (cf->playedPowerCheckers & PLAYER1_BOMBMASK) >> PLAYER1_BOMBSHIFT;
 		others = turn ? cf->playedPowerCheckers & ~PLAYER2_BOMBMASK : cf->playedPowerCheckers & ~PLAYER1_BOMBMASK;
-		cf->playedPowerCheckers = others | (++bombs << (turn ? PLAYER2_BOMBSHIFT : PLAYER1_BOMBSHIFT));
+		cf->playedPowerCheckers = others | (++bombs << (turn ? PLAYER2_BOMBSHIFT : PLAYER1_BOMBSHIFT));*/
+		cf->playedPowerCheckers |= 1 << (turn ? PLAYER2_BOMBSHIFT : PLAYER1_BOMBSHIFT);
 		break;
 	case DROPTYPE_WALL:
-		walls = turn ? (cf->playedPowerCheckers & PLAYER2_WALLMASK) >> PLAYER2_WALLSHIFT : (cf->playedPowerCheckers & PLAYER1_WALLMASK) >> PLAYER1_WALLSHIFT;
+		/*walls = turn ? (cf->playedPowerCheckers & PLAYER2_WALLMASK) >> PLAYER2_WALLSHIFT : (cf->playedPowerCheckers & PLAYER1_WALLMASK) >> PLAYER1_WALLSHIFT;
 		others = turn ? cf->playedPowerCheckers & ~PLAYER2_WALLMASK : cf->playedPowerCheckers & ~PLAYER1_WALLMASK;
-		cf->playedPowerCheckers = others | (++walls << (turn ? PLAYER2_WALLSHIFT : PLAYER1_WALLSHIFT));
+		cf->playedPowerCheckers = others | (++walls << (turn ? PLAYER2_WALLSHIFT : PLAYER1_WALLSHIFT));*/
+		cf->playedPowerCheckers |= 1 << (turn ? PLAYER2_WALLSHIFT : PLAYER1_WALLSHIFT);
 		break;
 	case DROPTYPE_X2:
-		x2s = turn ? (cf->playedPowerCheckers & PLAYER2_X2MASK) >> PLAYER2_X2SHIFT : (cf->playedPowerCheckers & PLAYER1_X2MASK) >> PLAYER1_X2SHIFT;
+		/*x2s = turn ? (cf->playedPowerCheckers & PLAYER2_X2MASK) >> PLAYER2_X2SHIFT : (cf->playedPowerCheckers & PLAYER1_X2MASK) >> PLAYER1_X2SHIFT;
 		others = turn ? cf->playedPowerCheckers & ~PLAYER2_X2MASK : cf->playedPowerCheckers & ~PLAYER1_X2MASK;
-		cf->playedPowerCheckers = others | (++x2s << (turn ? PLAYER2_X2SHIFT : PLAYER1_X2SHIFT));
+		cf->playedPowerCheckers = others | (++x2s << (turn ? PLAYER2_X2SHIFT : PLAYER1_X2SHIFT));*/
+		cf->playedPowerCheckers |= 1 << (turn ? PLAYER2_X2SHIFT : PLAYER1_X2SHIFT);
 	}
 }
 
 void ConnectFour_powerup_decrementPlayedPowerCheckers(ConnectFour *cf) {
-	unsigned short anvils, bombs, walls, x2s, others;
+	//unsigned short anvils, bombs, walls, x2s, others;
 	unsigned turn = cf->plyNumber & 1u;
 	switch (cf->pum[cf->plyNumber].diskType) {
 	case DROPTYPE_ANVIL:
-		anvils = turn ? (cf->playedPowerCheckers & PLAYER2_ANVILMASK) >> PLAYER2_ANVILSHIFT : (cf->playedPowerCheckers & PLAYER1_ANVILMASK) >> PLAYER1_ANVILSHIFT;
+		/*anvils = turn ? (cf->playedPowerCheckers & PLAYER2_ANVILMASK) >> PLAYER2_ANVILSHIFT : (cf->playedPowerCheckers & PLAYER1_ANVILMASK) >> PLAYER1_ANVILSHIFT;
 		others = turn ? cf->playedPowerCheckers & ~PLAYER2_ANVILMASK : cf->playedPowerCheckers & ~PLAYER1_ANVILMASK;
-		cf->playedPowerCheckers = others | (--anvils << (turn ? PLAYER2_ANVILSHIFT : PLAYER1_ANVILSHIFT));
+		cf->playedPowerCheckers = others | (--anvils << (turn ? PLAYER2_ANVILSHIFT : PLAYER1_ANVILSHIFT));*/
+		cf->playedPowerCheckers ^= 1 << (turn ? PLAYER2_ANVILSHIFT : PLAYER1_ANVILSHIFT);
 		break;
 	case DROPTYPE_BOMB:
-		bombs = turn ? (cf->playedPowerCheckers & PLAYER2_BOMBMASK) >> PLAYER2_BOMBSHIFT : (cf->playedPowerCheckers & PLAYER1_BOMBMASK) >> PLAYER1_BOMBSHIFT;
+		/*bombs = turn ? (cf->playedPowerCheckers & PLAYER2_BOMBMASK) >> PLAYER2_BOMBSHIFT : (cf->playedPowerCheckers & PLAYER1_BOMBMASK) >> PLAYER1_BOMBSHIFT;
 		others = turn ? cf->playedPowerCheckers & ~PLAYER2_BOMBMASK : cf->playedPowerCheckers & ~PLAYER1_BOMBMASK;
-		cf->playedPowerCheckers = others | (--bombs << (turn ? PLAYER2_BOMBSHIFT : PLAYER1_BOMBSHIFT));
+		cf->playedPowerCheckers = others | (--bombs << (turn ? PLAYER2_BOMBSHIFT : PLAYER1_BOMBSHIFT));*/
+		cf->playedPowerCheckers ^= 1 << (turn ? PLAYER2_BOMBSHIFT : PLAYER1_BOMBSHIFT);
 		break;
 	case DROPTYPE_WALL:
-		walls = turn ? (cf->playedPowerCheckers & PLAYER2_WALLMASK) >> PLAYER2_WALLSHIFT : (cf->playedPowerCheckers & PLAYER1_WALLMASK) >> PLAYER1_WALLSHIFT;
+		/*walls = turn ? (cf->playedPowerCheckers & PLAYER2_WALLMASK) >> PLAYER2_WALLSHIFT : (cf->playedPowerCheckers & PLAYER1_WALLMASK) >> PLAYER1_WALLSHIFT;
 		others = turn ? cf->playedPowerCheckers & ~PLAYER2_WALLMASK : cf->playedPowerCheckers & ~PLAYER1_WALLMASK;
-		cf->playedPowerCheckers = others | (--walls << (turn ? PLAYER2_WALLSHIFT : PLAYER1_WALLSHIFT));
+		cf->playedPowerCheckers = others | (--walls << (turn ? PLAYER2_WALLSHIFT : PLAYER1_WALLSHIFT));*/
+		cf->playedPowerCheckers ^= 1 << (turn ? PLAYER2_WALLSHIFT : PLAYER1_WALLSHIFT);
 		break;
 	case DROPTYPE_X2:
-		x2s = turn ? (cf->playedPowerCheckers & PLAYER2_X2MASK) >> PLAYER2_X2SHIFT : (cf->playedPowerCheckers & PLAYER1_X2MASK) >> PLAYER1_X2SHIFT;
+		/*x2s = turn ? (cf->playedPowerCheckers & PLAYER2_X2MASK) >> PLAYER2_X2SHIFT : (cf->playedPowerCheckers & PLAYER1_X2MASK) >> PLAYER1_X2SHIFT;
 		others = turn ? cf->playedPowerCheckers & ~PLAYER2_X2MASK : cf->playedPowerCheckers & ~PLAYER1_X2MASK;
-		cf->playedPowerCheckers = others | (--x2s << (turn ? PLAYER2_X2SHIFT : PLAYER1_X2SHIFT));
+		cf->playedPowerCheckers = others | (--x2s << (turn ? PLAYER2_X2SHIFT : PLAYER1_X2SHIFT));*/
+		cf->playedPowerCheckers ^= 1 << (turn ? PLAYER2_X2SHIFT : PLAYER1_X2SHIFT);
 	}
 }
 
@@ -906,8 +937,8 @@ bool ConnectFour_popten_drop(ConnectFour *cf, const int COLUMN) {
 void ConnectFour_popten_undrop(ConnectFour *cf) {
 	if (cf->ptm[--cf->plyNumber].size) {
 		unsigned vectorSize = cf->ptm[cf->plyNumber].size - 1ull;
-		uint8_t lastDrop = cf->ptm[cf->plyNumber].pops[vectorSize] & 0b111111;
-		cf->board[cf->plyNumber & 1u] ^= (Position)1ull << --cf->height[lastDrop];
+		const uint8_t LAST_DROP = cf->ptm[cf->plyNumber].pops[vectorSize] & 0b111111;
+		cf->board[cf->plyNumber & 1u] ^= (Position)1ull << --cf->height[LAST_DROP];
 		popTenFlags = cf->ptm[cf->plyNumber].pops[vectorSize - 1ull] & 0b11000000;
 		--cf->ptm[cf->plyNumber].size;
 		--cf->ptm[cf->plyNumber + 1u].size;
@@ -935,12 +966,12 @@ bool ConnectFour_popten_pop(ConnectFour *cf, const int COLUMN) {
 void ConnectFour_popten_unpop(ConnectFour *cf) {
 	if (cf->ptm[cf->plyNumber].size) {
 		unsigned vectorSize = cf->ptm[cf->plyNumber].size - 1ull;
-		uint8_t lastPop = (cf->ptm[cf->plyNumber].pops[vectorSize] - COLUMNS) & 0b111111;
-		Position bottomDisk = (Position)lastPop * ROWS_P1, falls = ALLCOLS << bottomDisk;
+		const uint8_t LAST_POP = (cf->ptm[cf->plyNumber].pops[vectorSize] - COLUMNS) & 0b111111;
+		Position bottomDisk = (Position)LAST_POP * ROWS_P1, falls = ALLCOLS << bottomDisk;
 		cf->board[0] = (cf->board[0] & (ALL ^ falls)) | (cf->board[0] & falls) << 1ull;
 		cf->board[1] = (cf->board[1] & (ALL ^ falls)) | (cf->board[1] & falls) << 1ull;
 		cf->board[cf->plyNumber & 1u] |= (Position)1ull << bottomDisk;
-		++cf->height[lastPop];
+		++cf->height[LAST_POP];
 		popTenFlags = cf->ptm[cf->plyNumber].pops[vectorSize - 1ull] & 0b11000000;
 		--cf->ptm[cf->plyNumber].size;
 		ConnectFour_popten_removeDisk(cf);
@@ -948,7 +979,7 @@ void ConnectFour_popten_unpop(ConnectFour *cf) {
 }
 
 bool ConnectFour_popten_pass(ConnectFour *cf) {
-	if (!(cf->board[cf->plyNumber & 1] & BOT) && popTenFlags == POPTEN_DROP) {
+	if (!ConnectFour_popten_poppable(cf) && popTenFlags == POPTEN_DROP) {
 		popTenFlags = POPTEN_PASS;
 		cf->ptm[cf->plyNumber].pops[cf->ptm[cf->plyNumber].size++] = 'P';
 		if ((cf->plyNumber + 1u) < MOVESIZE) {
@@ -974,6 +1005,27 @@ void ConnectFour_popten_removeDisk(ConnectFour *cf) {
 	cf->collectedDisks = (cf->plyNumber & 1u) ? cf->collectedDisks - 0x10u : cf->collectedDisks - 1u;
 }
 
+uint8_t ConnectFour_popten_getPoppedDisks(const ConnectFour *cf, const bool PLAYER) {
+	return PLAYER ? (cf->collectedDisks & 0xf0) >> 4 : cf->collectedDisks & 0xf;
+}
+
+Position ConnectFour_popten_poppable(const ConnectFour *cf) {
+	return cf->board[cf->plyNumber & 1u] & BOT;
+}
+
+void ConnectFour_popten_copy(ConnectFour *source, ConnectFour *dest) {
+	unsigned startBuffer, endBuffer = MOVESIZE + 1u;
+	memcpy(dest->board, source->board, sizeof(Position) * 2);
+	memcpy(dest->height, source->height, sizeof(uint8_t) * COLUMNS);
+	memcpy(dest->ptm->pops, source->ptm->pops, sizeof(int8_t) * 11ull);
+	dest->collectedDisks = source->collectedDisks;
+	dest->plyNumber = source->plyNumber;
+	dest->historyIndex = source->historyIndex;
+	for (startBuffer = 0u; startBuffer < endBuffer; ++startBuffer) {
+		dest->ptm[startBuffer].size = source->ptm[startBuffer].size;
+	}
+}
+
 bool ConnectFour_play(ConnectFour *cf, const char SEQ) {
 	if (!ConnectFour_gameOver(cf)) {
 		bool moveSuccess;
@@ -996,40 +1048,46 @@ bool ConnectFour_play(ConnectFour *cf, const char SEQ) {
 				case DROPTYPE_BOMB:
 					if (userPowerCheckerReadyToMoveFlag) {
 						userPowerCheckerReadyToMoveFlag = 0;
-						if ((moveSuccess = ConnectFour_powerup_dropBomb(cf, userPowerCheckerColumnBuffer, column))) {
+						if ((moveSuccess = ConnectFour_powerup_pop(cf, column))) {
 							userPowerUpDiskType = DROPTYPE_NORMAL;
 						}
 						return moveSuccess;
 					}
 					else {
-						userPowerCheckerColumnBuffer = column;
-						userPowerCheckerReadyToMoveFlag = 1;
+						if (ConnectFour_powerup_dropBomb(cf, column)) {
+							userPowerCheckerColumnBuffer = column;
+							userPowerCheckerReadyToMoveFlag = 1;
+						}
 					}
 					return true;
 				case DROPTYPE_WALL:
 					if (userPowerCheckerReadyToMoveFlag) {
 						userPowerCheckerReadyToMoveFlag = 0;
-						if ((moveSuccess = ConnectFour_powerup_dropWall(cf, userPowerCheckerColumnBuffer, column))) {
+						if ((moveSuccess = ConnectFour_powerup_drop(cf, column))) {
 							userPowerUpDiskType = DROPTYPE_NORMAL;
 						}
 						return moveSuccess;
 					}
 					else {
-						userPowerCheckerColumnBuffer = column;
-						userPowerCheckerReadyToMoveFlag = 1;
+						if (ConnectFour_powerup_dropWall(cf, column)) {
+							//userPowerCheckerColumnBuffer = column;
+							userPowerCheckerReadyToMoveFlag = 1;
+						};
 					}
 					return true;
 				case DROPTYPE_X2:
 					if (userPowerCheckerReadyToMoveFlag) {
 						userPowerCheckerReadyToMoveFlag = 0;
-						if ((moveSuccess = ConnectFour_powerup_dropX2(cf, userPowerCheckerColumnBuffer, column))) {
+						if ((moveSuccess = ConnectFour_powerup_drop(cf, column))) {
 							userPowerUpDiskType = DROPTYPE_NORMAL;
 						}
 						return moveSuccess;
 					}
 					else {
-						userPowerCheckerColumnBuffer = column;
-						userPowerCheckerReadyToMoveFlag = 1;
+						if (ConnectFour_powerup_dropX2(cf, column)) {
+							//userPowerCheckerColumnBuffer = column;
+							userPowerCheckerReadyToMoveFlag = 1;
+						}
 					}
 					return true;
 				}
@@ -1091,7 +1149,29 @@ bool ConnectFour_sequence(ConnectFour *cf, const char *SEQ) {
 }
 
 unsigned ConnectFour_numberLegalMoves(const ConnectFour *cf) {
-	return ConnectFour_numberLegalDrops(cf) + ConnectFour_numberLegalPops(cf);
+	switch(GAME_VARIANT) {
+	case NORMAL_VARIANT:
+	case FIVEINAROW_VARIANT:
+		return  ConnectFour_numberLegalDrops(cf);
+	case POPOUT_VARIANT:
+		return ConnectFour_numberLegalDrops(cf) + ConnectFour_numberLegalPops(cf);
+	case POPTEN_VARIANT:
+		{
+			const unsigned LEGAL_DROPS = ConnectFour_numberLegalDrops(cf), LEGAL_DROP_MOVES = (LEGAL_DROPS == 1u) ? 1u : LEGAL_DROPS - 1u;
+			const Position POPPABLE = ConnectFour_popten_poppable(cf);
+			switch(popTenFlags) {
+			case POPTEN_POP_NO_CONNECTION:
+				return LEGAL_DROP_MOVES;
+			case POPTEN_POP_CONNECTION:
+				return (LEGAL_DROP_MOVES + ConnectFour_numberLegalPops(cf));
+			case POPTEN_DROP:
+				return POPPABLE ? ConnectFour_numberLegalPops(cf) : 1u;
+			case POPTEN_PASS:
+				return ConnectFour_numberLegalPops(cf);
+			}
+		}
+	}
+	return 0u;
 }
 
 unsigned ConnectFour_numberLegalDrops(const ConnectFour *cf) {
@@ -1150,49 +1230,63 @@ void ConnectFour_reverseBoard(ConnectFour *cf) {
 	}
 }
 
+bool ConnectFour_symmetrical(const Position pos) {
+	return pos == ConnectFour_reverse(pos);
+}
+
 unsigned ConnectFour_getMoveSize(void) {
 	switch (GAME_VARIANT) {
+	default:
+	case NORMAL_VARIANT:
+		return COLUMNS;
 	case POPOUT_VARIANT:
 	case POPTEN_VARIANT:
 		return COLUMNS_X2;
-	default:
-		return COLUMNS;
+	case POWERUP_VARIANT:
+		return COLUMNS + (4u * COLUMNS);
+	case FIVEINAROW_VARIANT:
+		return COLUMNS_M1 - 1u;
 	}
 }
 
-void ConnectFour_displayHelpMessage(void) {
-	puts("FourTheWin -help | -bench | -book | -generate [LENGTH] [MOVES] | [VARIANT] |\n-size [COLUMNS] [ROWS] | [MOVES]\n");
-	puts("Solves the game of Connect Four and its official variants.\nFour the Win! accepts the following command-line switches below:\n");
-	puts("Switches\tDescription");
-	puts("_______________________________________________________________________________\n");
-	puts("-help\t\tPrints this detailed help message to the console and then exit.\n");
-	puts("-bench\t\tPerforms a simple benchmark test on a billion positions. The");
-	puts("\t\ttest displays how many positions per second were examined at");
-	puts("\t\tthe initial position.\n");
-	puts("-book\t\tUses an opening book. It is created if it does not exist. If");
-	puts("\t\tnot, Four the Win! will append the solution to the opening book");
-	puts("\t\tafter solving. Opening books are unsupported for the Pop Ten");
-	puts("\t\tvariant.\n");
-	puts("-generate\tGenerates the opening book within the specified [LENGTH] in");
-	puts("\t\tposition [MOVES]. Four the Win! exits on completion. This");
-	puts("\t\tswitch implies -book.\n");
-	puts("-size\t\tSets the size of the board in [COLUMNS]x[ROWS]. Four the Win!");
-	puts("\t\twill accept sizes from 4x4 to 16x16. If no size or an invaild");
-	puts("\t\tsize arguments were given, then it is set to the standard size.\n");
-	puts("Parameters\tDescription");
-	puts("_______________________________________________________________________________\n");
-	puts("[LENGTH]\tThe move length in which the opening book will generate.\n");
-	puts("[MOVES]\t\tPlay a sequence of moves from an empty position up until the");
-	puts("\t\tend of the move sequence. Assuming a size less than ten columns");
-	puts("\t\twide, drop moves range from leftmost 1 to rightmost 9, and pop");
-	puts("\t\tmoves from A to I respectively. Pop moves are case-insensitive.\n");
-	puts("[VARIANT]\tSelects a variant. If no variant or an invalid variant is");
-	puts("\t\tpassed in Four the Win!, then the normal variant is used.");
-	puts("\t\tOtherwise, it must be one of the five switches: -normal");
-	puts("\t\t-popout -powerup -popten -fiveinarow\n");
-	puts("[COLUMNS]\tThe number of columns, or the width of the board.\n");
-	puts("[ROWS]\t\tThe number of rows, or the height of the board.\n");
-	puts("Connect Four, Connect 4, and related terms are trademarks of Hasbro, Inc.");
+void ConnectFour_displayHelpMessage(char *exeName) {
+	printf("%s [ -h | -B | -b | -e | -g [LENGTH] | -p [POWER] | -s [COLUMNS]x[ROWS] | -t [ENTRIES] | -v [VARIANT] | [MOVES] ]\n", exeName);
+	puts("Versatile Connect Four solver capable of solving several variants.\nFour the Win! accepts the following command-line switches below:\n");
+	puts(" -h -? --help\tPrints this detailed help message to the console and then exit.\n");
+	puts(" -B --best\tObtains best move instead of depth to winning connection.\n");
+	puts(" -b --book\tUses an opening book. It is created empty if it does not exist.");
+	puts("\t\tIf not, Four the Win! will search for solutions from the opening");
+	puts("\t\tbook and display that solution. Opening books are unsupported in");
+	puts("\t\tPop Ten.\n");
+	puts(" -e --bench\tPerforms a simple benchmark test on a billion positions. The");
+	puts("\t\ttest summarizes how many positions per second were examined on");
+	puts("\t\tthe starting position.\n");
+	puts(" -g --generate\tGenerates the opening book within the specified [LENGTH]. Four");
+	puts("\t\tthe Win! exits on completion. This switch implies --book.\n");
+	puts(" -s --size\tSets the size of the playing field in [COLUMNS]x[ROWS]. Four the");
+	puts("\t\tWin! will accept sizes from 4x4 to 16x16. If no size or an");
+	puts("\t\tincorrect size argument was provided, then it is set to the");
+	puts("\t\tstandard size.\n");
+	puts(" -t --table\tPrepares the transposition hash table entries of [ENTRIES] in");
+	puts("\t\tgigabytes. It is allocated to use as much as your system's");
+	puts("\t\tmemory without this switch. The minimal is one gigabyte, and");
+	puts("\t\tthere is no maximal. If zero or a negative gigabyte value was");
+	puts("\t\tsupplied, then it is assigned to the smallest allowable value.\n");
+	puts(" -v --variant\tSelects a variant given [VARIANT]. If no variant or an invalid");
+	puts("\t\tvariant is passed in Four the Win!, then the normal variant is");
+	puts("\t\tused. Otherwise, it must be one of the five options: normal");
+	puts("\t\tpopout powerup popten fiveinarow\n");
+	puts(" [COLUMNS]\tThe number of columns, or the width of the playing field.\n");
+	puts(" [ENTRIES]\tHow much memory shall the transposition hash table occupy?\n");
+	puts(" [LENGTH]\tThe move length in which the opening book will generate.\n");
+	puts(" [MOVES]\tPlay a sequence of moves up until the end of the move sequence.");
+	puts("\t\tAssuming a size less than ten columns wide, drop moves range");
+	puts("\t\tfrom leftmost 1 to rightmost 9, and pop moves from A to I");
+	puts("\t\trespectively. Pop moves are case-insensitive.\n");
+	puts(" [POWER]\tPower Checker quantity. It is a single digit between one and two");
+	puts("\t\tinclusive.\n");
+	puts(" [ROWS]\t\tThe number of rows, or the height of the playing field.\n");
+	puts(" [VARIANT]\tThe supported variants to choose from as mentioned above.");
 }
 
 uint8_t ConnectFour_previousHistory(const uint8_t current) {
@@ -1275,7 +1369,7 @@ void ConnectFour_popout_benchmark(ConnectFour *cf, const unsigned COUNT) {
 
 void ConnectFour_powerup_benchmark(ConnectFour *cf, const unsigned COUNT) {
 	if (!ConnectFour_connection(cf->board[cf->plyNumber & 1u]) && (counter++ < COUNT) && (cf->plyNumber < MOVESIZE)) {
-		unsigned i, j;
+		unsigned i;
 		for (i = 0; i < COLUMNS; ++i) {
 			if (ConnectFour_powerup_drop(cf, i)) {
 				ConnectFour_powerup_benchmark(cf, COUNT);
@@ -1287,19 +1381,17 @@ void ConnectFour_powerup_benchmark(ConnectFour *cf, const unsigned COUNT) {
 				ConnectFour_powerup_benchmark(cf, COUNT);
 				ConnectFour_powerup_undropAnvil(cf);
 			}
-			for (j = 0; j < COLUMNS; ++j) {
-				if (ConnectFour_powerup_dropBomb(cf, i, j)) {
-					ConnectFour_powerup_benchmark(cf, COUNT);
-					ConnectFour_powerup_undropBomb(cf);
-				}
-				if (ConnectFour_powerup_dropWall(cf, i, j)) {
-					ConnectFour_powerup_benchmark(cf, COUNT);
-					ConnectFour_powerup_undropWall(cf);
-				}
-				if (ConnectFour_powerup_dropX2(cf, i, j)) {
-					ConnectFour_powerup_benchmark(cf, COUNT);
-					ConnectFour_powerup_undropX2(cf);
-				}
+			if (ConnectFour_powerup_dropBomb(cf, i)) {
+				ConnectFour_powerup_benchmark(cf, COUNT);
+				ConnectFour_powerup_undropBomb(cf);
+			}
+			if (ConnectFour_powerup_dropWall(cf, i)) {
+				ConnectFour_powerup_benchmark(cf, COUNT);
+				ConnectFour_powerup_undropWall(cf);
+			}
+			if (ConnectFour_powerup_dropX2(cf, i)) {
+				ConnectFour_powerup_benchmark(cf, COUNT);
+				ConnectFour_powerup_undropX2(cf);
 			}
 		}
 	}

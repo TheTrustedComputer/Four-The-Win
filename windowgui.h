@@ -8,7 +8,7 @@
 #define WINGUI_STOPPED_MESSAGE L"Stopped."
 
 #ifdef __GNUC__ // These commctrl.h definitions below are required for MinGW-w64 (gcc 8.1) to compile. They are not required if compiling from Visual Studio as they are already defined.
-
+/*
 #define TDCBF_OK_BUTTON 1
 #define TDCBF_CANCEL_BUTTON 8
 #define TDCBF_CLOSE_BUTTON 32
@@ -81,7 +81,7 @@ typedef struct _TASKDIALOGCONFIG {
 
 WINCOMMCTRLAPI HRESULT WINAPI TaskDialogIndirect(_In_ const TASKDIALOGCONFIG* pTaskConfig, _Out_opt_ int* pnButton, _Out_opt_ int* pnRadioButton, _Out_opt_ BOOL* pfVerificationFlagChecked);
 WINCOMMCTRLAPI HRESULT WINAPI TaskDialog(_In_opt_ HWND hwndOwner, _In_opt_ HINSTANCE hInstance, _In_opt_ PCWSTR pszWindowTitle, _In_opt_ PCWSTR pszMainInstruction, _In_opt_ PCWSTR pszContent, TASKDIALOG_COMMON_BUTTON_FLAGS dwCommonButtons, _In_opt_ PCWSTR pszIcon, _Out_opt_ int* pnButton);
-
+*/
 #endif
 
 enum MenuID {

@@ -1,25 +1,25 @@
 #include "book.h"
 
-bool BookFile_create(char *fileName) {
+bool BookFile_create(char *bookName) {
 #ifdef _MSC_VER
-	FILE *newFile;
-	errno_t errors = fopen_s(&newFile, fileName, "a");
+	FILE *creation;
+	errno_t errors = fopen_s(&creation, bookName, "a");
 #else
-	FILE *newFile = fopen(fileName, "a");
+	FILE *creation = fopen(bookName, "a");
 #endif
-	if (newFile) {
+	if (creation) {
 #ifdef _MSC_VER
 		if (errors) {
 			fprintf(stderr, "%s%s", BOOK_UNABLE_OPEN_FILE, BOOK_CREATING_STRING);
 			return false;
 		}
 #endif
-		if (fclose(newFile) == EOF) {
+		if (fclose(creation) == EOF) {
 			fprintf(stderr, "%s%s", BOOK_UNABLE_CLOSE_FILE, BOOK_CREATING_STRING);
 			errno = EIO;
 			return false;
 		}
-		return BookFile_write(fileName);
+		return BookFile_write(bookName);
 	}
 	else {
 		fprintf(stderr, "%s%s", BOOK_UNABLE_OPEN_FILE, BOOK_CREATING_STRING);
@@ -27,60 +27,61 @@ bool BookFile_create(char *fileName) {
 	}
 }
 
-bool BookFile_readFromDrive(char *fileName) {
+bool BookFile_readFromDrive(char *bookName) {
 	if (GAME_VARIANT != POPTEN_VARIANT) {
 #ifdef _MSC_VER
-		FILE *fetchedFile;
-		errno_t errors = fopen_s(&fetchedFile, fileName, "rb");
+		FILE *reader;
+		errno_t errors = fopen_s(&reader, bookName, "rb");
 #else
-		FILE *fetchedFile = fopen(fileName, "rb");
+		FILE *reader = fopen(bookName, "rb");
 #endif
-		if (fetchedFile) {
+		if (reader) {
 #ifdef _MSC_VER
 			if (errors) {
 				fprintf(stderr, "%s%s", BOOK_UNABLE_OPEN_FILE, BOOK_READING_STRING);
 				return false;
 			}
 #endif
-			if (fread(bookFile.signature, sizeof(char), 4, fetchedFile) != 4) {
+			// Check the header and print to stderr whenever there is inconsistency
+			if (fread(bookFile.signature, sizeof(bookFile.signature), 1, reader) != 1) {
 				if (strncmp(bookFile.signature, BOOK_SIGNATURE, 4)) {
 					fprintf(stderr, "Signature \"%s\" was not found.\n", BOOK_SIGNATURE);
 					errno = EBADF;
 				}
-				fclose(fetchedFile);
+				fclose(reader);
 				return false;
 			}
-			if (fread(&bookFile.columns, sizeof(uint8_t), 1, fetchedFile) != 1) {
+			if (fread(&bookFile.columns, sizeof(bookFile.columns), 1, reader) != 1) {
 				if (bookFile.columns != COLUMNS) {
 					fprintf(stderr, "%s%s", BOOKFILE_WRONG, "column size.\n");
 					errno = EINVAL;
 				}
-				fclose(fetchedFile);
+				fclose(reader);
 				return false;
 			}
-			if (fread(&bookFile.rows, sizeof(uint8_t), 1, fetchedFile) != 1) {
+			if (fread(&bookFile.rows, sizeof(bookFile.rows), 1, reader) != 1) {
 				if (bookFile.rows != ROWS) {
 					fprintf(stderr, "%s%s", BOOKFILE_WRONG, "row size.\n");
 					errno = EINVAL;
 				}
-				fclose(fetchedFile);
+				fclose(reader);
 				return false;
 			}
-			if (fread(&bookFile.variant, sizeof(uint8_t), 1, fetchedFile) != 1) {
+			if (fread(&bookFile.variant, sizeof(bookFile.variant), 1, reader) != 1) {
 				if (bookFile.variant != GAME_VARIANT) {
 					fprintf(stderr, "Variant mismatch between actual %d and book %d.\n", GAME_VARIANT, bookFile.variant);
 					errno = EINVAL;
 				}
-				fclose(fetchedFile);
+				fclose(reader);
 				return false;
 			}
-			if (fread(&bookFile.numRecords, sizeof(unsigned), 1, fetchedFile) != 1) {
+			if (fread(&bookFile.numRecords, sizeof(bookFile.numRecords), 1, reader) != 1) {
 				fprintf(stderr, "Read an unknown number of records.\n");
 				errno = EINVAL;
-				fclose(fetchedFile);
+				fclose(reader);
 				return false;
 			}
-			if (fclose(fetchedFile) == EOF) {
+			if (fclose(reader) == EOF) {
 				fprintf(stderr, "%s%s", BOOK_UNABLE_CLOSE_FILE, BOOK_READING_STRING);
 				errno = EIO;
 				return false;
@@ -93,57 +94,58 @@ bool BookFile_readFromDrive(char *fileName) {
 		}
 	}
 	else {
-		fprintf(stderr, "Opening books are unsupported in Pop Ten.\n");
+		//fprintf(stderr, "Opening books are unsupported in Pop Ten.\n");
 		errno = EPERM;
 		return false;
 	}
 }
 
-bool BookFile_write(char *fileName) {
+bool BookFile_write(char *bookName) {
 #ifdef _MSC_VER
-	FILE *storedFile;
-	errno_t errors = fopen_s(&storedFile, fileName, "rb+");
+	FILE *writer;
+	errno_t errors = fopen_s(&writer, bookName, "rb+");
 #else
-	FILE *storedFile = fopen(fileName, "rb+");
+	FILE *writer = fopen(bookName, "rb+");
 #endif
-	if (storedFile) {
+	if (writer) {
 #ifdef _MSC_VER
 		if (errors) {
 			fprintf(stderr, "%s%s", BOOK_UNABLE_OPEN_FILE, BOOK_WRITING_STRING);
 			return false;
 		}
 #endif
-		if (fwrite(BOOK_SIGNATURE, sizeof(char), 4, storedFile) != 4) {
+		// Check for any errors while writing the header
+		if (fwrite(BOOK_SIGNATURE, sizeof(char), 4, writer) != 4) {
 			fprintf(stderr, "Could not write the %s signature to the opening book.\n", BOOK_UNABLE_OPEN_FILE);
 			errno = EIO;
-			fclose(storedFile);
+			fclose(writer);
 			return false;
 		}
-		if (fputc(COLUMNS, storedFile) == EOF) {
+		if (fputc(COLUMNS, writer) == EOF) {
 			fprintf(stderr, "Could not write the column size to the opening book.\n");
 			errno = EIO;
-			fclose(storedFile);
+			fclose(writer);
 			return false;
 		}
-		if (fputc(ROWS, storedFile) == EOF) {
+		if (fputc(ROWS, writer) == EOF) {
 			fprintf(stderr, "Could not write the row size to the opening book.\n");
 			errno = EIO;
-			fclose(storedFile);
+			fclose(writer);
 			return false;
 		}
-		if (fputc(GAME_VARIANT, storedFile) == EOF) {
+		if (fputc(GAME_VARIANT, writer) == EOF) {
 			fprintf(stderr, "Could not write the game variant to the opening book.\n");
 			errno = EIO;
-			fclose(storedFile);
+			fclose(writer);
 			return false;
 		}
-		if (fwrite(&bookFile.numRecords, sizeof(unsigned), 1, storedFile) != 1) {
+		if (fwrite(&bookFile.numRecords, sizeof(unsigned), 1, writer) != 1) {
 			fprintf(stderr, "Could not write the number of records to the opening book.\n");
 			errno = EIO;
-			fclose(storedFile);
+			fclose(writer);
 			return false;
 		}
-		if (fclose(storedFile) == EOF) {
+		if (fclose(writer) == EOF) {
 			fprintf(stderr, "%s%s", BOOK_UNABLE_CLOSE_FILE, BOOK_WRITING_STRING);
 			errno = EIO;
 			return false;
@@ -156,33 +158,37 @@ bool BookFile_write(char *fileName) {
 	return true;
 }
 
-bool BookFile_append(char *fileName, ConnectFour *cf, Position hash, Result *r) {
+bool BookFile_append(char *fileName, ConnectFour *appendCF, Position appendHash, Result *appendResult) {
 #ifdef _MSC_VER
-	FILE *appendedFile;
-	errno_t errors = fopen_s(&appendedFile, fileName, "ab+");
+	FILE *appender;
+	errno_t errors = fopen_s(&appender, fileName, "ab+");
 #else
-	FILE *appendedFile = fopen(fileName, "ab+");
+	FILE *appender = fopen(fileName, "ab+");
 #endif
-	if (appendedFile) {
+	if (appender) {
 #ifdef _MSC_VER
 		if (errors) {
 			fprintf(stderr, "%s%s", BOOK_UNABLE_OPEN_FILE, BOOK_APPENDING_STRING);
 			return false;
 		}
 #endif
-		if (BookFile_hashLookup(appendedFile, cf, hash, true)) {
-			fclose(appendedFile);
+		// Stop if there is already an entry in the book
+		if (BookFile_hashLookup(appender, appendCF, appendHash, true)) {
+			fclose(appender);
 			return false;
 		}
-		fwrite(&hash, hashBytes, 1, appendedFile);
+
+		fwrite(&appendHash, hashBytes, 1, appender);
+
 		switch (GAME_VARIANT) {
 		case NORMAL_VARIANT:
-			BookFile_normal_append(appendedFile, cf, r);
+			BookFile_normal_append(appender, appendCF, appendResult);
 			break;
 		case POPOUT_VARIANT:
-			BookFile_popout_append(appendedFile, cf, r);
+			BookFile_popout_append(appender, appendCF, appendResult);
 		}
-		if (fclose(appendedFile) == EOF) {
+
+		if (fclose(appender) == EOF) {
 			fprintf(stderr, "%s%s", BOOK_UNABLE_CLOSE_FILE, BOOK_APPENDING_STRING);
 			return false;
 		}
@@ -192,25 +198,27 @@ bool BookFile_append(char *fileName, ConnectFour *cf, Position hash, Result *r) 
 		return false;
 	}
 #ifdef _MSC_VER
-	errors = fopen_s(&appendedFile, fileName, "rb+");
+	errors = fopen_s(&appender, fileName, "rb+");
 #else
-	appendedFile = fopen(fileName, "rb+");
+	appender = fopen(fileName, "rb+");
 #endif
-	if (appendedFile) {
+	if (appender) {
 #ifdef _MSC_VER
 		if (errors) {
 			fprintf(stderr, "%s%s", BOOK_UNABLE_OPEN_FILE, BOOK_UPDATING_STRING);
 			return false;
 		}
 #endif
-		fseek(appendedFile, BOOKENTRY_NUMRECORDS_OFFSET, SEEK_SET);
-		if (fwrite(&bookFile.numRecords, sizeof(unsigned), 1, appendedFile) != 1) {
+		fseek(appender, BOOKENTRY_NUMRECORDS_OFFSET, SEEK_SET);
+
+		// Try to handle write errors gracefully
+		if (fwrite(&bookFile.numRecords, sizeof(unsigned), 1, appender) != 1) {
 			fprintf(stderr, "A write error occurred when updating the number of records from book.\n");
 			errno = EIO;
-			fclose(appendedFile);
+			fclose(appender);
 			return false;
 		}
-		if (fclose(appendedFile) == EOF) {
+		if (fclose(appender) == EOF) {
 			fprintf(stderr, "%s%s", BOOK_UNABLE_CLOSE_FILE, BOOK_UPDATING_STRING);
 			return false;
 		}
@@ -222,12 +230,12 @@ bool BookFile_append(char *fileName, ConnectFour *cf, Position hash, Result *r) 
 	}
 }
 
-void BookFile_normal_append(FILE *file, ConnectFour *cf, Result *r) {
-	for (unsigned i = 0u; i < COLUMNS; ++i) {
-		if (ConnectFour_normal_drop(cf, i)) {
-			int8_t score = BookFile_normal_convertToEntry(&r[i]);
-			fwrite(&score, sizeof(int8_t), 1, file);
-			ConnectFour_normal_undrop(cf);
+void BookFile_normal_append(FILE *normalAppender, ConnectFour *normalCF, Result *normalResult) {
+	for (unsigned d = 0u; d < COLUMNS; ++d) {
+		if (ConnectFour_normal_drop(normalCF, d)) {
+			int8_t score = BookFile_normal_convertToEntry(&normalResult[d]);
+			fwrite(&score, sizeof(score), 1, normalAppender);
+			ConnectFour_normal_undrop(normalCF);
 		}
 	}
 }
@@ -254,7 +262,7 @@ void BookFile_popout_append(FILE *file, ConnectFour *cf, Result *r) {
 
 bool BookFile_retrieve(char *fileName, ConnectFour *cf, Position hash, Result *r, Result *rs) {
 	if (BookFile_readFromDrive(fileName)) {
-		int hashResult;
+		int hashResult = 0, movesHashResult, i;
 #ifdef _MSC_VER
 		FILE *readFile;
 		errno_t errors = fopen_s(&readFile, fileName, "rb");
@@ -268,10 +276,82 @@ bool BookFile_retrieve(char *fileName, ConnectFour *cf, Position hash, Result *r
 				return false;
 			}
 #endif
-			switch (GAME_VARIANT) {
-			case NORMAL_VARIANT:
-				if (!BookFile_normal_retrieve(readFile, cf, hash, rs, &hashResult)) {
+			subMovesNotInBook = false;
+
+			if (GAME_VARIANT == NORMAL_VARIANT) {
+				if (!BookFile_normal_retrieve(readFile, cf, hash, r, &hashResult, 0, false)) {
 					return false;
+				}
+			}
+			else if (GAME_VARIANT == POPOUT_VARIANT) {
+				if (!BookFile_popout_retrieve(readFile, cf, hash, r, &hashResult, 0, false)) {
+					return false;
+				}
+			}
+			else if (GAME_VARIANT == POWERUP_VARIANT) {
+
+			}
+			else if (GAME_VARIANT == FIVEINAROW_VARIANT) {
+
+			}
+
+			if (hashResult == BOOKENTRY_MIRRORED) {
+				ConnectFour_reverseBoard(cf);
+			}
+
+			if (GAME_VARIANT == NORMAL_VARIANT) {
+				for (i = 0; i < COLUMNS_X2; ++i) {
+					if (ConnectFour_normal_drop(cf, i)) {
+						if (!BookFile_normal_retrieve(readFile, cf, ConnectFour_getHashKey(cf), &rs[i], &movesHashResult, -i, true)) {
+							rs[i] = UNKNOWN_RESULT;
+							subMovesNotInBook = true;
+						}
+						ConnectFour_normal_undrop(cf);
+					}
+				}
+			}
+			else if (GAME_VARIANT == POPOUT_VARIANT) {
+				for (i = 0; i < COLUMNS_X2; ++i) {
+					if (i < COLUMNS) {
+						if (ConnectFour_popout_drop(cf, i)) {
+							if (!BookFile_popout_retrieve(readFile, cf, ConnectFour_getHashKey(cf), &rs[i], &movesHashResult, -i, true)) {
+								rs[i] = UNKNOWN_RESULT;
+								subMovesNotInBook = true;
+							}
+							ConnectFour_popout_undrop(cf);
+						}
+					}
+					else {
+						if (ConnectFour_popout_pop(cf, i)) {
+							if (!BookFile_popout_retrieve(readFile, cf, ConnectFour_getHashKey(cf), &rs[i], &movesHashResult, -i, true)) {
+								rs[i] = UNKNOWN_RESULT;
+								subMovesNotInBook = true;
+							}
+							ConnectFour_popout_unpop(cf);
+						}
+					}
+				}
+			}
+
+			for (i = 0; i < COLUMNS_X2; ++i) {
+				Result_increment(&rs[i]);
+			}
+
+			if (hashResult == BOOKENTRY_MIRRORED) {
+				ConnectFour_reverseBoard(cf);
+				if (GAME_VARIANT == POPOUT_VARIANT) {
+					Result_popout_reverse(rs);
+				}
+				Result_normal_reverse(rs);
+			}
+
+			/*switch (GAME_VARIANT) {
+			case NORMAL_VARIANT:
+				if (!BookFile_normal_retrieve(readFile, cf, hash, r, &hashResult)) {
+					return false;
+				}
+				if (hashResult == BOOKENTRY_MIRRORED) {
+					ConnectFour_reverseBoard(cf);
 				}
 				if (hashResult == BOOKENTRY_MIRRORED) {
 					ConnectFour_reverseBoard(cf);
@@ -279,18 +359,43 @@ bool BookFile_retrieve(char *fileName, ConnectFour *cf, Position hash, Result *r
 				}
 				break;
 			case POPOUT_VARIANT:
-				if (!BookFile_popout_retrieve(readFile, cf, hash, rs, &hashResult)) {
+				if (!BookFile_popout_retrieve(readFile, cf, hash, r, &hashResult, 0, false)) {
 					return false;
+				}
+				if (hashResult == BOOKENTRY_MIRRORED) {
+					ConnectFour_reverseBoard(cf);
+				}
+				for (i = 0; i < COLUMNS_X2; ++i) {
+					if (i < COLUMNS) {
+						if (ConnectFour_popout_drop(cf, i)) {
+							if (!BookFile_popout_retrieve(readFile, cf, ConnectFour_getHashKey(cf), &rs[i], &movesHashResult, -i, true)) {
+								rs[i] = UNKNOWN_RESULT;
+							}
+							ConnectFour_popout_undrop(cf);
+						}
+					}
+					else {
+						if (ConnectFour_popout_pop(cf, i)) {
+							if (!BookFile_popout_retrieve(readFile, cf, ConnectFour_getHashKey(cf), &rs[i], &movesHashResult, -i, true)) {
+								rs[i] = UNKNOWN_RESULT;
+							}
+							ConnectFour_popout_unpop(cf);
+						}
+					}
+				}
+				for (i = 0; i < COLUMNS_X2; ++i) {
+					Result_increment(&rs[i]);
 				}
 				if (hashResult == BOOKENTRY_MIRRORED) {
 					ConnectFour_reverseBoard(cf);
 					Result_normal_reverse(rs);
 					Result_popout_reverse(rs);
 				}
+				break;
 			default:
 				return false;
-			}
-			*r = Result_getBestResult(rs, ConnectFour_getMoveSize());
+			}*/
+
 			if (fclose(readFile) == EOF) {
 				fprintf(stderr, "%s%s", BOOK_UNABLE_CLOSE_FILE, BOOK_READING_STRING);
 				return false;
@@ -305,58 +410,32 @@ bool BookFile_retrieve(char *fileName, ConnectFour *cf, Position hash, Result *r
 	return false;
 }
 
-bool BookFile_normal_retrieve(FILE *file, ConnectFour *cf, Position hash, Result *rs, int *hashResult) {
+bool BookFile_normal_retrieve(FILE *file, ConnectFour *cf, Position hash, Result *r, int *hashResult, int mirrorIndex, bool columnSolve) {
 	int8_t bookResult;
 	if ((*hashResult = BookFile_hashLookup(file, cf, hash, false))) {
 		if (*hashResult == BOOKENTRY_MIRRORED) {
 			ConnectFour_reverseBoard(cf);
 		}
-		for (unsigned i = 0u; i < COLUMNS; ++i) {
-			if (ConnectFour_normal_drop(cf, i)) {
-				rs[i] = (fread(&bookResult, sizeof(int8_t), 1, file) == 1) ? BookFile_normal_convertToResult(bookResult) : UNKNOWN_RESULT;
-				ConnectFour_normal_undrop(cf);
-			}
-			else {
-				rs[i] = UNKNOWN_RESULT;
-			}
-		}
+		*r = (fread(&bookResult, sizeof(int8_t), 1, file) == 1) ? BookFile_normal_convertToResult(bookResult) : UNKNOWN_RESULT;
 	}
 	else {
-		fclose(file);
 		return false;
 	}
 	return true;
 }
 
-bool BookFile_popout_retrieve(FILE *file, ConnectFour *cf, Position hash, Result *rs, int *hashResult) {
+bool BookFile_popout_retrieve(FILE *file, ConnectFour *cf, Position hash, Result *r, int *hashResult, int mirrorIndex, bool columnSolve) {
 	int8_t bookResult;
 	if ((*hashResult = BookFile_hashLookup(file, cf, hash, false))) {
 		if (*hashResult == BOOKENTRY_MIRRORED) {
-			ConnectFour_reverseBoard(cf);
-		}
-		for (unsigned i = 0u; i < COLUMNS_X2; ++i) {
-			if (i < COLUMNS) {
-				if (ConnectFour_popout_drop(cf, i)) {
-					rs[i] = (fread(&bookResult, sizeof(int8_t), 1, file) == 1) ? BookFile_popout_convertToResult(bookResult) : UNKNOWN_RESULT;
-					ConnectFour_popout_undrop(cf);
-				}
-				else {
-					rs[i] = UNKNOWN_RESULT;
-				}
-			}
-			else {
-				if (ConnectFour_popout_pop(cf, i - COLUMNS)) {
-					rs[i] = (fread(&bookResult, sizeof(int8_t), 1, file) == 1) ? BookFile_popout_convertToResult(bookResult) : UNKNOWN_RESULT;
-					ConnectFour_popout_unpop(cf);
-				}
-				else {
-					rs[i] = UNKNOWN_RESULT;
-				}
+			if (columnSolve) {
+				*r = r[(int)(mirrorIndex + (mirrorIndex + COLUMNS_M1))];
+				return true;
 			}
 		}
+		*r = (fread(&bookResult, sizeof(int8_t), 1, file) == 1) ? BookFile_popout_convertToResult(bookResult) : UNKNOWN_RESULT;
 	}
 	else {
-		fclose(file);
 		return false;
 	}
 	return true;
@@ -364,24 +443,18 @@ bool BookFile_popout_retrieve(FILE *file, ConnectFour *cf, Position hash, Result
 
 int BookFile_hashLookup(FILE *file, ConnectFour *cf, Position targetHash, bool appendToBook) {
 	Position bookHash = 0ull;
-	unsigned i, valueBlocks = 1u;
+	unsigned r;
+	assert(ftell(file) != -1);
 	fseek(file, BOOKENTRY_OFFSET, SEEK_SET);
-	for (i = 0u; i < bookFile.numRecords; ++i) {
+	for (r = 0u; r < bookFile.numRecords; ++r) {
 		if (fread(&bookHash, hashBytes, 1, file) == 1) {
-			switch (GAME_VARIANT) {
-			case NORMAL_VARIANT:
-				valueBlocks = sizeof(int8_t) * popcount(~bookHash & TOP);
-				break;
-			case POPOUT_VARIANT:
-				valueBlocks = sizeof(int8_t) * popcount(~bookHash & TOP) + ConnectFour_countBottomDisksFromHashKey(bookHash);
-			}
 			if (targetHash == bookHash) {
 				return BOOKENTRY_EXACT;
 			}
 			if (ConnectFour_reverse(targetHash) == bookHash) {
 				return BOOKENTRY_MIRRORED;
 			}
-			if (fseek(file, valueBlocks, SEEK_CUR)) {
+			if (fseek(file, 1, SEEK_CUR)) {
 				puts(BOOK_EOF_REACHED_STRING);
 				break;
 			}
@@ -396,10 +469,11 @@ int BookFile_hashLookup(FILE *file, ConnectFour *cf, Position targetHash, bool a
 	return 0;
 }
 
-bool BookFile_generateBook(char *fileName, ConnectFour *cf, unsigned short plies) {
-	unsigned i;
+bool BookFile_generateBook(char *fileName, ConnectFour *cf, unsigned plies) {
+	unsigned p;
 	uint8_t bookEntry;
 	Position hash = 0ull;
+	Result result;
 	Result *results = malloc(sizeof(Result) * ConnectFour_getMoveSize());
 	Result *bookResult = malloc(sizeof(Result) * ConnectFour_getMoveSize());
 #ifdef _MSC_VER
@@ -418,27 +492,30 @@ bool BookFile_generateBook(char *fileName, ConnectFour *cf, unsigned short plies
 			return false;
 		}
 #endif
-		ConnectFour_printMoves(cf);
 		if (!BookFile_hashLookup(generatorFile, cf, (hash = ConnectFour_getHashKey(cf)), false)) {
+			fwrite(&hash, hashBytes, 1, generatorFile);
 			switch (GAME_VARIANT) {
 			case NORMAL_VARIANT:
-				AlphaBeta_normal_getMoveScores(cf, results, false);
+				result = AlphaBeta_normal_solve(cf, false);
+				bookEntry = BookFile_normal_convertToEntry(&result);
+				fwrite(&bookEntry, sizeof(uint8_t), 1, generatorFile);
 				break;
 			case POPOUT_VARIANT:
-				AlphaBeta_popout_getMoveScores(cf, results, false);
+				result = AlphaBeta_popout_solve(cf, false);
+				bookEntry = BookFile_popout_convertToEntry(&result);
+				fwrite(&bookEntry, sizeof(uint8_t), 1, generatorFile);
 			}
-			fwrite(&hash, hashBytes, 1, generatorFile);
-			for (i = 0; i < COLUMNS; ++i) {
+			/*for (i = 0; i < COLUMNS; ++i) {
 				switch (GAME_VARIANT) {
 				case NORMAL_VARIANT:
 					bookEntry = BookFile_normal_convertToEntry(&results[i]);
 					fwrite(&bookEntry, sizeof(uint8_t), 1, generatorFile);
-					ConnectFour_normal_undrop(cf);
+					//ConnectFour_normal_undrop(cf);
 					break;
 				case POPOUT_VARIANT:
 					bookEntry = BookFile_popout_convertToEntry(&results[i]);
 					fwrite(&bookEntry, sizeof(uint8_t), 1, generatorFile);
-					ConnectFour_popout_undrop(cf);
+					//ConnectFour_popout_undrop(cf);
 				}
 			}
 			if (GAME_VARIANT == POPOUT_VARIANT) {
@@ -446,23 +523,25 @@ bool BookFile_generateBook(char *fileName, ConnectFour *cf, unsigned short plies
 					if (ConnectFour_popout_pop(cf, i)) {
 						bookEntry = BookFile_popout_convertToEntry(&results[i]);
 						fwrite(&bookEntry, sizeof(uint8_t), 1, generatorFile);
-						ConnectFour_popout_unpop(cf);
+						//onnectFour_popout_unpop(cf);
 					}
 				}
-			}
+			}*/
 			++bookFile.numRecords;
 			++currentEntries;
-			printf(" - %s\n", BOOKFILE_APPENDED);
+			//printf(" - %s\n", BOOKFILE_APPENDED);
 		}
-		else {
+		/*else {
 			printf(" - %s\n", BOOKFILE_EXISTS);
-		}
+		}*/
 		switch (GAME_VARIANT) {
 		case NORMAL_VARIANT:
-			BookFile_normal_generateEntries(generatorFile, cf, bookResult, plies);
+			for (p = 1; p <= plies; ++p) {
+				BookFile_normal_generateEntries(generatorFile, cf, p);
+			}
 			break;
-		case POPOUT_VARIANT:
-			BookFile_popout_generateEntries(generatorFile, cf, bookResult, plies);
+		/*case POPOUT_VARIANT:
+			BookFile_popout_generateEntries(generatorFile, cf, plies);*/
 		}
 		if (fclose(generatorFile) == EOF) {
 			fprintf(stderr, "%s%s", BOOK_UNABLE_CLOSE_FILE, BOOK_GENERATING_STRING);
@@ -512,11 +591,103 @@ bool BookFile_generateBook(char *fileName, ConnectFour *cf, unsigned short plies
 	}
 }
 
-void BookFile_normal_generateEntries(FILE *file, ConnectFour *cf, Result *bookResult, unsigned plies) {
+void BookFile_normal_generateEntries(FILE *file, ConnectFour *cf, unsigned plies) {
 	if (cf->plyNumber < plies) {
-		unsigned i, j;
-		Position hash;
+		unsigned cStart, cEnd;
+		Position hashEntry;
 		uint8_t bookEntry;
+		Result bookResult;
+		cEnd = ConnectFour_symmetrical((hashEntry = ConnectFour_getHashKey(cf))) ? COLUMNS_D2 + (COLUMNS & 1u) : COLUMNS;
+		for (cStart = 0u; cStart < cEnd; ++cStart) {
+			if ((GAME_VARIANT == POPOUT_VARIANT) ? ConnectFour_popout_drop(cf, cStart) : ConnectFour_normal_drop(cf, cStart)) {
+				if (!BookFile_hashLookup(file, cf, (hashEntry = ConnectFour_getHashKey(cf)), false)) {
+					if (ConnectFour_connection(cf->board[!(cf->plyNumber & 1)]) || cf->plyNumber == AREA) {
+						if (GAME_VARIANT == POPOUT_VARIANT) {
+							ConnectFour_popout_undrop(cf);
+						}
+						else {
+							ConnectFour_normal_undrop(cf);
+						}
+						continue;
+					}
+					else {
+						TranspositionTable_dynamicReset(&table, tableSize);
+						if (GAME_VARIANT == POPOUT_VARIANT) {
+							bookResult = AlphaBeta_popout_solve(cf, false);
+						}
+						else {
+							bookResult = AlphaBeta_normal_solve(cf, false);
+						}
+					}
+					bookEntry = (GAME_VARIANT == POPOUT_VARIANT) ? BookFile_popout_convertToEntry(&bookResult) : BookFile_normal_convertToEntry(&bookResult);
+					fwrite(&hashEntry, hashBytes, 1, file);
+					fwrite(&bookEntry, sizeof(uint8_t), 1, file);
+					++currentEntries;
+					++bookFile.numRecords;
+					/*ConnectFour_printMoves(cf);
+					printf(" - %s\n", BOOKFILE_APPENDED);*/
+					BookFile_normal_generateEntries(file, cf, plies);
+				}
+				else {
+					/*ConnectFour_printMoves(cf);
+					printf(" - %s\n", BOOKFILE_EXISTS);*/
+					BookFile_normal_generateEntries(file, cf, plies);
+				}
+				if (GAME_VARIANT == POPOUT_VARIANT) {
+					ConnectFour_popout_undrop(cf);
+				}
+				else {
+					ConnectFour_normal_undrop(cf);
+				}
+			}
+		}
+	}
+	else {
+		return;
+	}
+			/*if ((GAME_VARIANT == POPOUT_VARIANT) ? ConnectFour_popout_drop(cf, i) : ConnectFour_normal_drop(cf, i)) {
+				if (cf->moves[0] <= (COLUMNS >> 1u) - !(COLUMNS & 1u)) {
+					//ConnectFour_printMoves(cf);
+#ifdef __unix__
+					fflush(stdout);
+#endif
+					if (!BookFile_hashLookup(file, cf, (hash = ConnectFour_getHashKey(cf)), false)) {
+						if (ConnectFour_connection(cf->board[!(cf->plyNumber & 1)]) || cf->plyNumber == AREA) {
+							//printf(" - %s\n", BOOKFILE_TERMINAL);
+							if (GAME_VARIANT == POPOUT_VARIANT) {
+								ConnectFour_popout_undrop(cf);
+							}
+							else {
+								ConnectFour_normal_undrop(cf);
+							}
+							continue;
+						}
+						else {
+							TranspositionTable_dynamicReset(&table, tableSize);
+							if (GAME_VARIANT == POPOUT_VARIANT) {
+								bookResult = AlphaBeta_popout_solve(cf, false);
+							}
+							else {
+								bookResult = AlphaBeta_normal_solve(cf, false);
+							}
+						}
+						bookEntry = (GAME_VARIANT == POPOUT_VARIANT) ? BookFile_popout_convertToEntry(&bookResult) : BookFile_normal_convertToEntry(&bookResult);
+						fwrite(&hash, hashBytes, 1, file);
+						fwrite(&bookEntry, sizeof(uint8_t), 1, file);
+						++currentEntries;
+						++bookFile.numRecords;
+						//printf(" - %s\n", BOOKFILE_APPENDED);
+						BookFile_normal_generateEntries(file, cf, plies);
+					}
+					else {
+						printf(" - %s\n", BOOKFILE_EXISTS);
+						BookFile_normal_generateEntries(file, cf, plies);
+					}
+				}*/
+
+
+
+		/*
 		for (i = 0u; i < COLUMNS; ++i) {
 			if ((GAME_VARIANT == POPOUT_VARIANT) ? ConnectFour_popout_drop(cf, i) : ConnectFour_normal_drop(cf, i)) {
 				if (cf->moves[0] <= (COLUMNS >> 1u) - !(COLUMNS & 1u)) {
@@ -585,8 +756,7 @@ void BookFile_normal_generateEntries(FILE *file, ConnectFour *cf, Result *bookRe
 					return;
 				}
 			}
-		}
-	}
+		}*/
 }
 
 void BookFile_popout_generateEntries(FILE *file, ConnectFour *cf, Result *bookResult, unsigned plies) {
@@ -594,7 +764,7 @@ void BookFile_popout_generateEntries(FILE *file, ConnectFour *cf, Result *bookRe
 		unsigned i, j;
 		Position hash;
 		uint8_t bookEntry;
-		BookFile_normal_generateEntries(file, cf, bookResult, plies);
+		BookFile_normal_generateEntries(file, cf, plies);
 		for (i = 0u; i < COLUMNS; ++i) {
 			if (ConnectFour_popout_pop(cf, i)) {
 				ConnectFour_printMoves(cf);
@@ -610,7 +780,7 @@ void BookFile_popout_generateEntries(FILE *file, ConnectFour *cf, Result *bookRe
 						continue;
 					}
 					else {
-						AlphaBeta_popout_getMoveScores(cf, bookResult, false);
+						AlphaBeta_popout_getMoveScores(cf, bookResult, NULL, false);
 					}
 					fwrite(&hash, hashBytes, 1, file);
 					for (j = 0u; j < COLUMNS_X2; ++j) {
@@ -645,71 +815,199 @@ void BookFile_popout_generateEntries(FILE *file, ConnectFour *cf, Result *bookRe
 }
 
 bool BookFile_storeToTranspositionTable(char *fileName, ConnectFour *cf, TranspositionTable *tt) {
-	Position bookHash;
-	Result bookResult, bestBookResult;
-	int8_t bookEntry;
-	unsigned i, j, blockSize = 1u;
+	Position bookHash = 0ull;
+	int8_t bookEntry = 0;
+	unsigned i;
+		if (BookFile_readFromDrive(fileName)) {
 #ifdef _MSC_VER
-	FILE *tableBookFile;
-	errno_t errors = fopen_s(&tableBookFile, fileName, "rb");
+		FILE *tableBookFile;
+		errno_t errors = fopen_s(&tableBookFile, fileName, "rb");
 #else
-	FILE *tableBookFile = fopen(fileName, "rb");
+		FILE *tableBookFile = fopen(fileName, "rb");
 #endif
-	if (tableBookFile) {
-#ifdef _MSC_VER
-		if (errors) {
-			fprintf(stderr, "%s%s", BOOK_UNABLE_OPEN_FILE, BOOK_READING_STRING);
-			return false;
-		}
-		fseek(tableBookFile, BOOKENTRY_OFFSET, SEEK_SET);
-		for (i = 0; i < bookFile.numRecords; ++i) {
-			fread(&bookHash, hashBytes, 1, tableBookFile);
-			bestBookResult = bookResult = (Result){ LOSS_CHAR, 0 };
-			switch (GAME_VARIANT) {
-			case NORMAL_VARIANT:
-				blockSize = sizeof(int8_t) * popcount(~bookHash & TOP);
-				break;
-			case POPOUT_VARIANT:
-				blockSize = sizeof(int8_t) * popcount(~bookHash & TOP) + ConnectFour_countBottomDisksFromHashKey(bookHash);
+		if (tableBookFile) {
+			fseek(tableBookFile, BOOKENTRY_OFFSET, SEEK_SET);
+			for (i = 0; i < bookFile.numRecords; ++i) {
+				fread(&bookHash, hashBytes, 1, tableBookFile);
+				fread(&bookEntry, sizeof(bookEntry), 1, tableBookFile);
+				if (!TranspositionTable_BookFile_store(tt, bookHash, bookEntry)) {
+					fprintf(stderr, "No table memory left for additional entries.");
+					break;
+				}
+
 			}
-			for (j = 0; j < COLUMNS_X2; ++j) {
-				if (j < COLUMNS) {
-					if ((GAME_VARIANT == POPOUT_VARIANT) ? ConnectFour_popout_drop(cf, j) : ConnectFour_normal_drop(cf, j)) {
-						fread(&bookEntry, sizeof(uint8_t), 1, tableBookFile);
-						bookResult = (GAME_VARIANT == POPOUT_VARIANT) ? BookFile_popout_convertToResult(bookEntry) : BookFile_normal_convertToResult(bookEntry);
-						TranspositionTable_store(tt, bookHash, (bookEntry > 0) ? PLAYER_WIN : (bookEntry < 0) ? -PLAYER_WIN : DRAW, bookResult.dtc);
-						if (GAME_VARIANT == POPOUT_VARIANT) {
-							ConnectFour_popout_undrop(cf);
+#ifdef _MSC_VER
+			if (errors) {
+				fprintf(stderr, "%s%s", BOOK_UNABLE_OPEN_FILE, BOOK_READING_STRING);
+				return false;
+			}
+			fseek(tableBookFile, BOOKENTRY_OFFSET, SEEK_SET);
+			for (i = 0; i < bookFile.numRecords; ++i) {
+				fread(&bookHash, hashBytes, 1, tableBookFile);
+				bestBookResult = bookResult = (Result){ LOSS_CHAR, 0 };
+				switch (GAME_VARIANT) {
+				case NORMAL_VARIANT:
+					blockSize = sizeof(int8_t) * popcount(~bookHash & TOP);
+					break;
+				case POPOUT_VARIANT:
+					blockSize = sizeof(int8_t) * popcount(~bookHash & TOP) + ConnectFour_countBottomDisksFromHashKey(bookHash);
+				}
+				for (j = 0; j < COLUMNS_X2; ++j) {
+					if (j < COLUMNS) {
+						if ((GAME_VARIANT == POPOUT_VARIANT) ? ConnectFour_popout_drop(cf, j) : ConnectFour_normal_drop(cf, j)) {
+							fread(&bookEntry, sizeof(uint8_t), 1, tableBookFile);
+							bookResult = (GAME_VARIANT == POPOUT_VARIANT) ? BookFile_popout_convertToResult(bookEntry) : BookFile_normal_convertToResult(bookEntry);
+							TranspositionTable_store(tt, bookHash, (bookEntry > 0) ? PLAYER_WIN : (bookEntry < 0) ? -PLAYER_WIN : DRAW, bookResult.dtc);
+							if (GAME_VARIANT == POPOUT_VARIANT) {
+								ConnectFour_popout_undrop(cf);
+							}
+							else {
+								ConnectFour_normal_undrop(cf);
+							}
 						}
-						else {
-							ConnectFour_normal_undrop(cf);
+					}
+					else {
+						if ((GAME_VARIANT == POPOUT_VARIANT) && ConnectFour_popout_pop(cf, j - COLUMNS)) {
+							fread(&bookEntry, sizeof(uint8_t), 1, tableBookFile);
+							ConnectFour_popout_unpop(cf);
 						}
 					}
 				}
+				if (fseek(tableBookFile, blockSize, SEEK_CUR)) {
+					fclose(tableBookFile);
+					return false;
+				}
+			}
+			if (fclose(tableBookFile) == EOF) {
+				fprintf(stderr, "%s%s", BOOK_UNABLE_CLOSE_FILE, BOOK_READING_STRING);
+				return false;
+			}
+			return true;
+#endif
+		fclose(tableBookFile);
+		}
+		else {
+			fprintf(stderr, "%s%s", BOOK_UNABLE_OPEN_FILE, BOOK_READING_STRING);
+			return false;
+		}
+	}
+	return true;
+}
+
+int BookFile_loadFromTranspositionTable(char *fileName, TranspositionTable *tt, Position hash, Result *tableResult) {
+	if (BookFile_readFromDrive(fileName)) {
+		uint8_t loader; bool mirroredHash, loadStatus;
+		if ((loadStatus = TranspositionTable_BookFile_load(tt, hash, &loader))) {
+			mirroredHash = false;
+		}
+		else if ((loadStatus = TranspositionTable_BookFile_load(tt, ConnectFour_reverse(hash), &loader))) {
+			mirroredHash = true;
+		}
+		if (loadStatus) {
+			switch (GAME_VARIANT) {
+			case NORMAL_VARIANT:
+				*tableResult = BookFile_normal_convertToResult(loader);
+				break;
+			case POPOUT_VARIANT:
+				*tableResult = BookFile_popout_convertToResult(loader);
+				break;
+			}
+			return mirroredHash ? BOOKENTRY_MIRRORED : BOOKENTRY_EXACT;
+		}
+	}
+	return 0;
+}
+
+bool BookFile_loadSubMovesFromTranspositionTable(char *fileName, ConnectFour *cf, TranspositionTable *tt, Result *subResults) {
+	if (BookFile_readFromDrive(fileName)) {
+		int i;
+
+		if (GAME_VARIANT == NORMAL_VARIANT) {
+			for (i = 0; i < COLUMNS; ++i) {
+				subResults[i] = UNKNOWN_RESULT;
+				if (ConnectFour_normal_drop(cf, i)) {
+					if (!BookFile_loadFromTranspositionTable(fileName, tt, ConnectFour_getHashKey(cf), &subResults[i])) {
+						ConnectFour_normal_undrop(cf);
+						return false;
+					}
+					ConnectFour_normal_undrop(cf);
+				}
+			}
+			for (i = 0; i < COLUMNS; ++i) {
+				Result_increment(&subResults[i]);
+			}
+		}
+		else if (GAME_VARIANT == POPOUT_VARIANT) {
+			for (i = 0; i < COLUMNS_X2; ++i) {
+				subResults[i] = UNKNOWN_RESULT;
+				if (i < COLUMNS) {
+					if (ConnectFour_popout_drop(cf, i)) {
+						if (!BookFile_loadFromTranspositionTable(fileName, tt, ConnectFour_getHashKey(cf), &subResults[i])) {
+							ConnectFour_popout_undrop(cf);
+							return false;
+						}
+						ConnectFour_popout_undrop(cf);
+					}
+				}
 				else {
-					if ((GAME_VARIANT == POPOUT_VARIANT) && ConnectFour_popout_pop(cf, j - COLUMNS)) {
-						fread(&bookEntry, sizeof(uint8_t), 1, tableBookFile);
+					if (ConnectFour_popout_pop(cf, i - COLUMNS)) {
+						if (!BookFile_loadFromTranspositionTable(fileName, tt, ConnectFour_getHashKey(cf), &subResults[i])) {
+							ConnectFour_popout_unpop(cf);
+							return false;
+						}
 						ConnectFour_popout_unpop(cf);
 					}
 				}
 			}
-			if (fseek(tableBookFile, blockSize, SEEK_CUR)) {
-				fclose(tableBookFile);
-				return false;
+			for (i = 0; i < COLUMNS_X2; ++i) {
+				Result_increment(&subResults[i]);
 			}
 		}
-		if (fclose(tableBookFile) == EOF) {
-			fprintf(stderr, "%s%s", BOOK_UNABLE_CLOSE_FILE, BOOK_READING_STRING);
+		return true;
+	}
+	return false;
+}
+
+bool BookFile_checkVaildEntry(char *bookName, ConnectFour *cf, TranspositionTable *tt, int plies) {
+	for (unsigned r = 0u; r < plies; ++r) {
+		if (BookFile_normal_checkVaildEntry(bookName, cf, tt, plies)) {
+			puts("One or more book entries missing.");
 			return false;
 		}
-		return true;
-#endif
 	}
-	else {
-		fprintf(stderr, "%s%s", BOOK_UNABLE_OPEN_FILE, BOOK_READING_STRING);
-		return false;
-	}
+	puts("All book entries valid.");
 	return true;
+}
+
+bool BookFile_normal_checkVaildEntry(char *bookName, ConnectFour *cf, TranspositionTable *tt, int plies) {
+	static bool missing = false;
+	if (cf->plyNumber < plies) {
+		unsigned cStart, cEnd;
+		uint8_t bookEntry;
+		Position bookHash;
+		cEnd = ConnectFour_symmetrical((bookHash = ConnectFour_getHashKey(cf))) ? COLUMNS_D2 + (COLUMNS & 1u) : COLUMNS;
+		for (cStart = 0; cStart < cEnd; ++cStart) {
+			if (ConnectFour_normal_drop(cf, cStart)) {
+				if (ConnectFour_connection(cf->board[!(cf->plyNumber & 1)]) || cf->plyNumber == AREA) {
+					ConnectFour_normal_undrop(cf);
+					continue;
+				}
+				else {
+					if (TranspositionTable_BookFile_load(tt, (bookHash = ConnectFour_getHashKey(cf)), &bookEntry) || TranspositionTable_BookFile_load(tt, ConnectFour_reverse(bookHash), &bookEntry)) {
+						BookFile_normal_checkVaildEntry(bookName, cf, tt, plies);
+					}
+					else {
+						ConnectFour_printMoves(cf);
+						puts(": missing entry");
+						missing = true;
+					}
+				}
+				ConnectFour_normal_undrop(cf);
+			}
+		}
+
+	}
+	return missing;
 }
 
 int8_t BookFile_normal_convertToEntry(Result* result) {
@@ -767,3 +1065,4 @@ Result BookFile_popout_convertToResult(int8_t entry) {
 	}
 	return DRAW_RESULT;
 }
+

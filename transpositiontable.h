@@ -15,12 +15,14 @@
 
 typedef struct {
 	Position key;
-	int8_t value, depth, bounds;
+	int8_t value, bounds;
+	short depth;
 } HashtableEntry;
 
 typedef struct {
 	Position normalKey, anvilKey, bombKey, wallKey, x2Key;
-	int8_t value, depth;
+	int8_t value;
+	short depth;
 } PowerUp_HashtableEntry;
 
 typedef struct {
@@ -28,10 +30,10 @@ typedef struct {
 		HashtableEntry *entries;
 		PowerUp_HashtableEntry *powerUpEntries;
 	};
-	int size;
+	long long size;
 } TranspositionTable;
 
-/*typedef struct {
+typedef struct {
 	Position position;
 	unsigned long long count;
 } RepetitionTable_Entry;
@@ -39,23 +41,24 @@ typedef struct {
 typedef struct {
 	RepetitionTable_Entry *repetitionEntries;
 	unsigned size;
-} RepetitionTable;*/
+} RepetitionTable;
 
 static unsigned tableSize;
+bool bookEntryFound;
 
-bool TranspositionTable_isPrime(int);
-unsigned TranspositionTable_isPrevNumPrime(int);
+bool TranspositionTable_isPrime(long long);
+unsigned TranspositionTable_isPrevNumPrime(long long);
 
-bool TranspositionTable_initialize(TranspositionTable*, int);
+bool TranspositionTable_initialize(TranspositionTable*, long long);
 void TranspositionTable_reset(TranspositionTable*);
 void TranspositionTable_resetZero(TranspositionTable*);
-bool TranspositionTable_resize(TranspositionTable*, int);
+bool TranspositionTable_resize(TranspositionTable*, long long);
 void TranspositionTable_destroy(TranspositionTable*);
 
-void TranspositionTable_store(TranspositionTable*, Position, int, int);
-void TranspositionTable_storeBounds(TranspositionTable*, Position, int, int, int);
-void TranspositionTable_storeWithoutDepth(TranspositionTable*, Position, int);
-void TranspositionTable_powerup_store(TranspositionTable*, Position, Position, Position, Position, Position, int, int);
+void TranspositionTable_store(TranspositionTable*, Position, int8_t, short);
+void TranspositionTable_storeBounds(TranspositionTable*, Position, int8_t, short, int8_t);
+void TranspositionTable_storeWithoutDepth(TranspositionTable*, Position, int8_t);
+void TranspositionTable_powerup_store(TranspositionTable*, Position, Position, Position, Position, Position, int8_t, short);
 
 int TranspositionTable_normal_loadValue(TranspositionTable*, Position);
 int TranspositionTable_popout_loadValue(TranspositionTable*, Position);

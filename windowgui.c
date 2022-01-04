@@ -311,13 +311,13 @@ DWORD WindowGUI_thread_solve(LPVOID lpParam) {
 	clock_t elasped = clock();
 	switch (WindowGUI_variant) {
 	case NORMAL_VARIANT:
-		WindowGUI_result = AlphaBeta_normal_solve(&WindowGUI_connectFour);
+		WindowGUI_result = AlphaBeta_normal_solve(&WindowGUI_connectFour, false);
 		break;
 	case POPOUT_VARIANT:
-		WindowGUI_result = AlphaBeta_normal_solve(&WindowGUI_connectFour);
+		WindowGUI_result = AlphaBeta_normal_solve(&WindowGUI_connectFour, false);
 		break;
 	case POWERUP_VARIANT:
-		WindowGUI_result = AlphaBeta_powerup_solve(&WindowGUI_connectFour);
+		WindowGUI_result = AlphaBeta_powerup_solve(&WindowGUI_connectFour, false);
 	}
 	elasped = clock() - elasped;
 	seconds = (double)elasped / CLOCKS_PER_SEC;

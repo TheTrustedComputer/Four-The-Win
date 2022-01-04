@@ -28,7 +28,7 @@
 	The second scenario will be treated as a draw as it does for chess--a longer, more strategical game than Connect Four.
 
 	Power Up is a lot more complex than PopOut as players are introduced four extra disks called Power Checkers.
-	Players may play up to two specific Power Checkers per game. They cannot play any more once they are all dropped.
+	Players may play at most one specific Power Checker per each game. They cannot play any more once they are all dropped.
 	Here are the basic descriptions on how each Power Checker works after it is dropped:
 	Anvils - The player immediately pops all of the disks below it.
 	Bombs - The player pops one of the opponent's disks on the bottom.
@@ -38,7 +38,7 @@
 
 	Pop Ten is different from PopOut and Power Up. The starting position is setup unlike the other three.
 	Players are required to fill the bottom row first, then the next row until the board is filled.
-	The variant starts when both players pop their disks from the bottom.
+	There is no order where players can drop their disks at. The variant starts when both players pop their disks from the bottom.
 	If the popped disk is part of a four-in-a-row connection, then that player gets to keep it and recieves another turn.
 	Otherwise, the player must put it back not in the same column whenever possible, and the turn switches to the other player.
 	In some incredibly rare circumstances, the player to move cannot make a single pop move when it is their turn!
@@ -47,12 +47,10 @@
 
 	Solvability of Connect Four games:
 	Original: Solved in 1988 by James Allen and Victor Allis. The first player wins. John Tromp showed different players win on different board sizes.
-	PopOut: Solved in 2014 by Jukka Pukkala. The first player wins. The solution is much shorter than with the original rules.
+	PopOut: Solved in 2014 by Jukka Pukkala. The first player wins. The solution is half as long than with the original rules.
 	Power Up: Unsolved. This variant has a huge branching factor. For example, there are 105 (7 normal, 7*7 walls and 7*7 x2's) possible moves in the starting position!
 	Pop Ten: Unsolved. In order for this variant to be solved, all permutations of the starting position full of disks must be solved!
-	Five-In-A-Row: Solved by me in 2016 using John Tromp's Fhourstones program. The game ends in a draw when both sides play perfectly.
-
-	Connect Four, Connect 4, and related terms are trademarks of Hasbro, Incorporated.
+	Five-In-A-Row: Solved by me in 2016 editing John Tromp's Fhourstones program. The game ends in a draw when both sides play perfectly.
 
 */
 
@@ -99,8 +97,8 @@
 // Connect Four board size dimensions and common constants. Define USE_MACROS to use the values assigned below.
 #ifdef USE_MACROS
 
-#define COLUMNS		7
-#define ROWS		6
+#define COLUMNS		4
+#define ROWS		4
 #define COLUMNS_M1	(COLUMNS - 1)
 #define COLUMNS_X2	(COLUMNS << 1)
 #define COLUMNS_D2	(COLUMNS >> 1)
@@ -110,7 +108,7 @@
 #define AREA		(COLUMNS * ROWS)
 #define HISTORYSIZE	21
 #if defined(POPOUT_RULESET) || defined(POPTEN_RULESET)
-#define MOVESIZE	(HISTORYSIZE + (AREA << 2))
+#define MOVESIZE	((HISTORYSIZE << 1) + (AREA << 1))
 #elif defined(POWERUP_RULESET)
 #define MOVESIZE 	(AREA + (AREA << 1))
 #else
@@ -121,7 +119,7 @@
 #else
 
 unsigned COLUMNS, ROWS;
-unsigned COLUMNS_M1, COLUMNS_X2, COLUMNS_D2;
+unsigned COLUMNS_M1, COLUMNS_X2, COLUMNS_X2_P1, COLUMNS_D2;
 unsigned ROWS_M1, ROWS_P1, ROWS_P2;
 unsigned AREA, HISTORYSIZE, MOVESIZE, MOVESIZE_M1;
 
@@ -154,6 +152,7 @@ typedef void *Position;
 typedef uint_fast64_t Position;
 
 #endif
+
 // Connect Four static bitmaps.
 static Position BOT, ALL, TOP, COLS, ALLCOLS;
 
@@ -170,19 +169,22 @@ static LargePosition L_ODDROWS, L_EVENROWS;
 static unsigned GAME_VARIANT;
 
 // Positions to hold the state of the column before the anvil disk was dropped (Power Up).
-static Position anvilColumnNormals[2][2][2], anvilColumnAnvils[2][2], anvilColumnWalls[2][2], anvilColumnBombs[2][2], anvilColumnX2s[2][2];
+static Position anvilColumnNormals[2][2], anvilColumnAnvils[2], anvilColumnWalls[2], anvilColumnBombs[2], anvilColumnX2s[2];
 
 // Position to store the heights of disks before an anvil disk was played (Power Up).
-static unsigned anvilHeight[2][2];
+static unsigned anvilHeight[2];
 
 // An 8-bit integer to save the type of Power Checker before being popped by a Bomb disk (Power Up).
-static uint8_t bombPoppedType[2][2];
+static uint8_t bombPoppedType[2];
 
 // A bitmap to save current Pop Ten starting position after a reset (Pop Ten).
 static Position popTenBitmap[2];
 
 // Variable to describe the Pop Ten pop status from PopTenPopStatus (Pop Ten).
 static uint8_t popTenFlags;
+
+// Variable to mark what type of disc or checker that was dropped in (Power Up).
+static uint8_t powerUpFlags;
 
 // Counter for the number of moves played while benchmarking.
 static unsigned counter;
@@ -200,21 +202,15 @@ static int userPowerCheckerColumnBuffer, userPowerCheckerReadyToMoveFlag;
 static const char PLAYER1_NAME[] = "Yellow";
 static const char PLAYER2_NAME[] = "Red";
 
-// Single bit to hold whether a Power Checker has been played.
+// Single bit to hold whether a Power Checker has been played; there are no binary literals in C, only C++14 and above have them
 enum PowerCheckerBit {
-	PLAYER1_ANVILBIT = 0b1, PLAYER1_BOMBBIT = 0b100, PLAYER1_WALLBIT = 0b10000, PLAYER1_X2BIT = 0b1000000,
-	PLAYER2_ANVILBIT = 0b100000000, PLAYER2_BOMBBIT = 0b10000000000, PLAYER2_WALLBIT = 0b1000000000000, PLAYER2_X2BIT = 0b100000000000000
-};
-
-// Bit masks used to hold how many Power Checkers were played.
-enum PowerCheckerMask {
-	PLAYER1_ANVILMASK = 0b11, PLAYER1_BOMBMASK = 0b1100, PLAYER1_WALLMASK = 0b110000, PLAYER1_X2MASK = 0b11000000,
-	PLAYER2_ANVILMASK = 0b1100000000, PLAYER2_BOMBMASK = 0b110000000000, PLAYER2_WALLMASK = 0b11000000000000, PLAYER2_X2MASK = 0b1100000000000000
+	PLAYER1_ANVILBIT = 0x1, PLAYER1_BOMBBIT = 0x2, PLAYER1_WALLBIT = 0x4, PLAYER1_X2BIT = 0x8,
+	PLAYER2_ANVILBIT = 0x10, PLAYER2_BOMBBIT = 0x20, PLAYER2_WALLBIT = 0x40, PLAYER2_X2BIT = 0x80
 };
 
 // The program needs to perform bit shifting in order to obtain the number of Power Checkers played.
 enum PowerCheckerShifter {
-	PLAYER1_ANVILSHIFT, PLAYER1_BOMBSHIFT = 2, PLAYER1_WALLSHIFT = 4, PLAYER1_X2SHIFT = 6, PLAYER2_ANVILSHIFT = 8, PLAYER2_BOMBSHIFT = 10, PLAYER2_WALLSHIFT = 12, PLAYER2_X2SHIFT = 14
+	PLAYER1_ANVILSHIFT, PLAYER1_BOMBSHIFT, PLAYER1_WALLSHIFT, PLAYER1_X2SHIFT, PLAYER2_ANVILSHIFT, PLAYER2_BOMBSHIFT, PLAYER2_WALLSHIFT, PLAYER2_X2SHIFT
 };
 
 // Indices to encode the type of disk that has been dropped in Power Up.
@@ -224,7 +220,12 @@ enum DiskDroppedType {
 
 // Flags to indicate the status of the number of collected disks after a pop in Pop Ten.
 enum PopTenPopStatus {
-	POPTEN_POP_NO_CONNECTION, POPTEN_POP_CONNECTION = 0b11000000, POPTEN_DROP = 0b10000000, POPTEN_PASS = 0b1000000
+	POPTEN_POP_NO_CONNECTION, POPTEN_POP_CONNECTION = 0xc0, POPTEN_DROP = 0x80, POPTEN_PASS = 0x40
+};
+
+// Flags of what type of Power Checker was dropped into the board
+enum PowerUpDropStatus {
+	POWERUP_DROP_NORMAL_OR_ANVIL = 0x1, POWERUP_DROP_BOMB = 0x2, POWERUP_DROP_WALL = 0x4, POWERUP_DROP_X2 = 0x8
 };
 
 #ifndef USE_MACROS
@@ -235,27 +236,28 @@ enum GameVariant {
 #endif
 
 // Structure of positions to store a bitboard of played Power Checkers.
-typedef struct {
+typedef struct PowerCheckers {
 	Position anvil, bomb, wall, x2;
 } PowerCheckers;
 
 // The same for bigger boards larger than 64 bits but less than 128 bits.
-typedef struct {
+typedef struct LargePowerCheckers {
 	LargePosition l_anvil, l_bomb, l_wall, l_x2;
 } LargePowerCheckers;
 
 // Structure containing a Power Up move.
-typedef struct {
-	uint8_t diskType : 4, powerColumn : 4, normalColumn : 4;
+// There are five different types -- 3 bits minimum
+typedef struct PowerUpMove {
+	int status : 8, diskType : 4, normalColumn : 4, powerColumn : 4;
 } PowerUpMove;
 
 // Vector or dynamic array containing Pop Ten moves.
-typedef struct {
+typedef struct PopTenMove {
 	uint8_t *pops, size;
 } PopTenMove;
 
 // Data structure holding the popular Connect Four game. Unions repurpose memory for bigger boards and required data for other variants.
-typedef struct {
+typedef struct ConnectFour {
 	union {		// Universal
 		Position *board;															// Position to store the bitmap of all disks (all variants)
 		LargePosition *l_board;														// Larger version of the above as boards larger than 8x8 are unsupported (all variants)
@@ -271,11 +273,11 @@ typedef struct {
 		PowerUpMove *pum;															// The moves made during a Power Up game
 		PopTenMove *ptm;															// The moves made during a Pop Ten game
 	};
-	uint8_t *height;																// Bit indexes containing the height of each column
+	uint8_t *height; //, historyIndex;													// Bit indexes containing the height of each column, and the move history index (PopOut)
 	unsigned plyNumber;																// The number of half-moves during a game
 	union {		// Counters
-		unsigned short playedPowerCheckers;											// A 16-bit integer storing played Power Checkers (Power Up) Format: 2(X2 WA BO AN) 1(X2 WA BO AN)
-		uint8_t historyIndex, collectedDisks;										// The move history index (PopOut), and the number of collected disks (Pop Ten)
+		uint8_t playedPowerCheckers;												// An 8-bit integer storing played Power Checkers (Power Up) Format: P2(X2 WA BO AN) P1(X2 WA BO AN)
+		uint8_t historyIndex, collectedDisks;										// The number of collected disks when popping a disc (Pop Ten)
 	};
 } ConnectFour;
 
@@ -328,13 +330,13 @@ bool ConnectFour_powerup_drop(ConnectFour*, const int);								// Drop a normal 
 void ConnectFour_powerup_undrop(ConnectFour*);										// Undo the normal drop--identical to the original variant
 bool ConnectFour_powerup_dropAnvil(ConnectFour*, const int);						// Drop an anvil if the certain column is not full, and then isolate it
 void ConnectFour_powerup_undropAnvil(ConnectFour*);									// Undo the anvil disk isolation and drop
-bool ConnectFour_powerup_dropBomb(ConnectFour*, const int, const int);				// Drop a bomb if the certain column is not full, then pop an opponent's disk
+bool ConnectFour_powerup_dropBomb(ConnectFour*, const int);							// Drop a bomb if the certain column is not full, then pop an opponent's disk
 void ConnectFour_powerup_undropBomb(ConnectFour*);									// Undo the popping of the opponent disk and bomb drop
-bool ConnectFour_powerup_dropWall(ConnectFour*, const int, const int);				// Drop a wall, then drop a non-winning normal disk if the certain column is not full
+bool ConnectFour_powerup_dropWall(ConnectFour*, const int);							// Drop a wall, then drop a non-winning normal disk if the certain column is not full
 void ConnectFour_powerup_undropWall(ConnectFour*);									// Undo the wall drop
-bool ConnectFour_powerup_dropX2(ConnectFour*, const int, const int);				// Drop an x2, then drop a normal disk if the certain column is not full
+bool ConnectFour_powerup_dropX2(ConnectFour*, const int);							// Drop an x2, then drop a normal disk if the certain column is not full
 void ConnectFour_powerup_undropX2(ConnectFour*);									// Undo the x2 drop
-bool ConnectFour_powerup_pop(ConnectFour*, const int, const unsigned short);		// Pop if the bottom disk is the opponent's disk (Power Up exclusive)
+bool ConnectFour_powerup_pop(ConnectFour*, const int);		// Pop if the bottom disk is the opponent's disk (Power Up exclusive)
 void ConnectFour_powerup_unpop(ConnectFour*);										// Undo the pop move (opponent, Power Up variant only)
 void ConnectFour_powerup_incrementPlayedPowerCheckers(ConnectFour*, const int);
 void ConnectFour_powerup_decrementPlayedPowerCheckers(ConnectFour*);
@@ -348,6 +350,9 @@ bool ConnectFour_popten_pass(ConnectFour*);											// If the player cannot ma
 void ConnectFour_popten_unpass(ConnectFour*);										// Undo the passing move
 void ConnectFour_popten_addDisk(ConnectFour*);										// Increment the number of collected disks by one
 void ConnectFour_popten_removeDisk(ConnectFour*);									// Do the opposite of the above by decrementing it by one
+uint8_t ConnectFour_popten_getPoppedDisks(const ConnectFour*, const bool);			// Return popped disks players have kept
+Position ConnectFour_popten_poppable(const ConnectFour*);							// Return true if the current player can pop on their turn
+void ConnectFour_popten_copy(ConnectFour*, ConnectFour*);
 
 // Functions relating to move generation
 bool ConnectFour_play(ConnectFour*, const char);									// Play a single move from the user
@@ -362,9 +367,10 @@ Position ConnectFour_reverse(Position);												// Reverse a Connect Four pos
 Position ConnectFour_getHashKey(const ConnectFour*);								// Hash value of the current Connect Four position--used for transposition tables
 Position ConnectFour_getPowerUpHashKey(const ConnectFour*, const Position);			// Hash value for the Power Up game variation--used for transposition tables
 unsigned ConnectFour_countBottomDisksFromHashKey(Position);							// Extract the number of bottom disks from the given hash key
-void ConnectFour_reverseBoard(ConnectFour*);										// Reverse a Connect Four position and update heights
-unsigned ConnectFour_getMoveSize(void);												// Return the number of moves available for play.
-void ConnectFour_displayHelpMessage(void);											// Display the help message if user types "-help" in command-line
+void ConnectFour_reverseBoard(ConnectFour*);										// Reverse a Connect Four position then update the heights
+unsigned ConnectFour_getMoveSize(void);												// Return the number of moves available for play
+void ConnectFour_displayHelpMessage(char*);											// Display the help message if user types "-help" in command-line
+bool ConnectFour_symmetrical(const Position);										// Return true if the position is horizontally symmetrical
 
 // Move history functions
 uint8_t ConnectFour_previousHistory(const uint8_t);									// Increment the history index (PopOut)
@@ -375,9 +381,9 @@ void ConnectFour_clearHistory(ConnectFour*);										// Clear out the move hist
 // Benchmarking functions
 void ConnectFour_benchmark(ConnectFour*, const unsigned);							// Benchmark and print the number of position made per second
 void ConnectFour_normal_benchmark(ConnectFour*, const unsigned);					// Main move generation function to test for performance or profiling
-void ConnectFour_popout_benchmark(ConnectFour*, const unsigned);					// Popout move generation for benchmarking performance
+void ConnectFour_popout_benchmark(ConnectFour*, const unsigned);					// PopOut move generation for benchmarking performance
 void ConnectFour_powerup_benchmark(ConnectFour*, const unsigned);					// Move generation benchmark performance for Power Up
 void ConnectFour_popten_benchmark(ConnectFour*, const unsigned);					// Analyze the move performance made in the Pop Ten variant
-void ConnectFour_fiveinarow_benchmark(ConnectFour*, const unsigned);				// Try to test for performace in Five-In-A-Row (more or less the same as original)
+void ConnectFour_fiveinarow_benchmark(ConnectFour*, const unsigned);				// Try to test for performance in Five-In-A-Row (more or less the same as original)
 
 #endif

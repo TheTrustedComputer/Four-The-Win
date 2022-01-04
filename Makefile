@@ -1,13 +1,16 @@
-# My processor, an AMD A8-3870K APU is in the K10 architecture family. Thus, using this switch -march=amdfam10 optimizes code for these processors.
+# My processor, an AMD Ryzen 7 5800X, is in the Zen 3 architecture family.
+#CPU_ARCH = znver3
+
+# Uncomment to target towards the older AMD K10 architecture (applies to my previous AMD A8-3870K computer).
 #CPU_ARCH = amdfam10
 
-# Uncomment to target the Gemini Lake architecture of my AWOW mini PC (-march=goldmont-plus).
+# Uncomment to target the Gemini Lake architecture -- the AWOW mini PC uses this processor.
 #CPU_ARCH = goldmont-plus
 
-# Uncomment to tell the compiler to target your computer's processor.
+# Uncomment to tell the C compiler to target your computer's processor.
 CPU_ARCH = native
 
-# Uncomment to compile for best move instead of depth towards a win.
+# Uncomment to compile for best move instead of depth towards a win (will be removed).
 FTW_BEST = -DSCORE_TEST
 
 # Uncomment to use a fixed transposition table size of one gigabyte.
@@ -18,7 +21,7 @@ FTW_MACROS = -DUSE_MACROS
 
 # Initialize the GCC complier and its arguments assuming they are installed.
 CC = gcc
-CFLAGS = -Ofast -g -Wall -march=${CPU_ARCH}
+CFLAGS = -Ofast -g -Wall -Wextra -march=${CPU_ARCH} -lpthread -lm
 SOURCES = main.c
 OUTPUT = -o FourTheWin
 
