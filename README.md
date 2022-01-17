@@ -21,15 +21,15 @@ The playing field is not restricted to the standard seven columns by six rows. I
 
 ## Compilation Instructions
 ### Linux
-I have attached a Makefile for easy compiling as any C99+ compiler and GNU Make are the only dependencies required. I recommend GCC for compilation. Open a terminal emulator of your choice and type the following commands below
+I have attached a Makefile for easy compiling as any C99+ compiler and GNU Make are the only dependencies required. I recommend GCC for compilation. Open a terminal emulator of your choice and type the following commands below excluding the dollar prompt.
 ```
-git clone https://github.com/TheTrustedComputer/Four-The-Win
-cd Four-The-Win
-make
+$ git clone https://github.com/TheTrustedComputer/Four-The-Win
+$ cd Four-The-Win
+$ make
 ```
 This should create an executable binary called FourTheWin in the same directory it compiled. Run it with
 ```
-./FourTheWin
+$ ./FourTheWin
 ```
 and enjoy!
 ### Windows
