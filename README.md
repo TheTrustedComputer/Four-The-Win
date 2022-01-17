@@ -41,4 +41,4 @@ I do not own a Mac computer and thus cannot provide compilation instructions. If
 To be announced.
 
 ## Contribution and Bug Reporting
-Four the Win! is mostly working as intended. Feel free to contribute since I am still working on this project although slowly. If you find any bugs in my program, please open an issue, and I will attempt to debug them. It is not guareteed I will fix all given issues in a timely manner.
+Four the Win! is mostly working as intended. Feel free to contribute since I am still working on this project although slowly. If you discover any bugs in my program, please open an issue, and I will attempt to debug them. It is not guareteed I will fix all given issues in a timely manner.
