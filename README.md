@@ -20,6 +20,7 @@ Currently, it uses negamax with alpha-beta pruning, static move ordering, iterat
 The playing field is not restricted to the standard seven columns by six rows. It can accept sizes from 4x4 to about 11x10 due to how integers work on Connect Four, but the maximum input size is 16. By default, Four the Win! operates on the standard size without arguments. More details about how to use them are under the Arguments heading. 
 
 ## Compilation Instructions
+### Linux
 I have attached a Makefile for easy compiling on Linux as any C99+ compiler and GNU Make are the only dependencies required. I recommend GCC for compilation. Open a terminal emulator of your choice and type the following commands below
 ```
 git clone https://github.com/TheTrustedComputer/Four-The-Win
@@ -31,9 +32,9 @@ This should create an executable binary called FourTheWin in the same directory 
 ./FourTheWin
 ```
 and enjoy!
-
+### Windows
 Windows users need Visual Studio to compile Four the Win! on their platform. Create an empty C++ project at the startup dialog, import the file called "main.c" to the project, and compile by clicking on the play button in the menu bar on top. The Community edition should suffice; alternatively, users can download Cygwin or MSYS2, and follow the Linux instructions assuming the packages contaning the ```gcc``` and ```make``` executables are installed. ```git``` is optional; this repository is downloadable directly from the GitHib site.
-
+### macOS
 I do not own an Apple computer and thus cannot provide compilation instructions. If you have a Mac and wanted to try out Four the Win!, then please post them for those users on the discussion tab. Instructions on Apple machines will go on the main page once finalized and tested.
 
 ## Arguments
