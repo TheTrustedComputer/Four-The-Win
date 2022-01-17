@@ -32,7 +32,7 @@ This should create an executable binary called FourTheWin in the same directory 
 ```
 and enjoy!
 
-Windows users need Visual Studio to compile Four the Win! on their platform. Create an empty C++ project at the startup dialog, import the file called "main.c" to the project, and compile by clicking on the play button in the menu bar on top. The Community edition should suffice; alternatively, users can download Cygwin or MSYS2, and follow the Linux instructions assuming the packages contaning the ```git```, ```gcc```, ```make``` executables are installed.
+Windows users need Visual Studio to compile Four the Win! on their platform. Create an empty C++ project at the startup dialog, import the file called "main.c" to the project, and compile by clicking on the play button in the menu bar on top. The Community edition should suffice; alternatively, users can download Cygwin or MSYS2, and follow the Linux instructions assuming the packages contaning the ```gcc``` and ```make``` executables are installed.
 
 I do not own an Apple computer and thus cannot provide compilation instructions. If you have a Mac and wanted to try out Four the Win!, then please post them for those users on the discussion tab. Instructions on Apple machines will go on the main page once finalized and tested.
 
