@@ -8,7 +8,7 @@ Hasbro introduced four new variants to Connect Four in 2009: PopOut, Pop 10, Pow
 
 My program and my Connect Four skills confirmed his analysis, and with perfect play, under the PopOut rules, the first player will win in at most eleven moves. Most code is original, but the algorithms used are not since they are profoundly relevant for a game solver. The only unoriginal code deals with 128-bit integers for boards too large to fit in 64 bits, which are taken from this repository: https://github.com/calccrypto/uint128_t
 
-Fully solving Power Up is doable but greatly slows down the search algorithm as the power discs or checkers increase the braching factor by a large margin. Whereas in Pop Ten, there is no unique starting position. All possible combinations of dropping alternating discs row by row is required to completely solve this variant.
+Fully solving Power Up is doable but greatly slows down the search algorithm as the power discs or checkers increase the branching factor by a large margin. Whereas in Pop Ten, there is no unique starting position. All possible combinations of dropping alternating discs row by row is required to completely solve this variant.
 
 ## Features
 Four the Win! can solve the original game as well as all four Hasbro variants mentioned above. It is impossible to play against it because that is not my original intention.
@@ -32,9 +32,9 @@ This should create an executable binary called FourTheWin in the same directory 
 ```
 and enjoy!
 
-Windows users need Visual Studio to compile Four the Win! on their platform. Create an empty C++ project at the startup dialog, import the file called "main.c" to the project, and compile by clicking on the play button in the menu bar on top.
+Windows users need Visual Studio to compile Four the Win! on their platform. Create an empty C++ project at the startup dialog, import the file called "main.c" to the project, and compile by clicking on the play button in the menu bar on top. The Community edition should suffice; alternatively, users can download Cygwin or MSYS2, and follow the Linux instructions assuming the packages contaning the ```git```, ```gcc```, ```make``` executables are installed.
 
-I do not own an Apple computer. If you have a Mac and wanted to try out Four the Win!, then please post compilation instructions for those users on the discussion tab.
+I do not own an Apple computer and thus cannot provide compilation instructions. If you have a Mac and wanted to try out Four the Win!, then please post them for those users on the discussion tab. Instructions on Apple machines will go on the main page once finalized and tested.
 
 ## Arguments
 To be announced.
