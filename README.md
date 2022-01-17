@@ -33,7 +33,7 @@ $ ./FourTheWin
 ```
 and enjoy!
 ### Windows
-Download, install, then run Visual Studio to compile Four the Win! on this platform. Create an empty C++ project at the startup dialog, import the file called "main.c" to the project, and compile by clicking on the play button in the menu bar on top. The Community edition should suffice; alternatively, users can download Cygwin or MSYS2, and follow the Linux instructions assuming the packages contaning the ```gcc``` and ```make``` executables are installed. ```git``` is optional; this repository is downloadable directly from the GitHib site.
+Download, install, then run Visual Studio to compile Four the Win! on this platform. Create an empty C++ project at the startup dialog, import the file called "main.c" to the project, and compile by clicking on the play button in the menu bar on top. The Community edition should suffice; alternatively, users can download Cygwin or MSYS2, and follow the Linux instructions assuming the packages containing the ```gcc``` and ```make``` executables are installed. ```git``` is optional; this repository is downloadable directly from the GitHib site.
 ### macOS
 I do not own a Mac computer and thus cannot provide compilation instructions. If you have a Mac and wanted to try out Four the Win!, then please post them for those users on the discussion tab. Instructions on these machines will go on the main page once finalized and tested.
 
