@@ -21,7 +21,7 @@ The playing field is not restricted to the standard seven columns by six rows. I
 
 ## Compilation Instructions
 ### Linux
-I have attached a Makefile for easy compiling as any C99+ compiler and GNU Make are the only dependencies required. I recommend GCC for compilation. Open a terminal emulator of your choice and type the following commands below excluding the dollar prompt.
+I have attached a Makefile for easy compiling as any C99+ compiler and GNU Make are the only dependencies required. I recommend GCC for compilation because of its lazy memory allocation. Open a terminal emulator of your choice and type the following commands below excluding the dollar prompt.
 ```
 $ git clone https://github.com/TheTrustedComputer/Four-The-Win
 $ cd Four-The-Win
