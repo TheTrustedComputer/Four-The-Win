@@ -41,7 +41,7 @@ bool AlphaBeta_popten_checkDraw(ConnectFour *cf) {
 }
 
 bool AlphaBeta_powerup_checkWin(ConnectFour *cf) {
-	unsigned c, d, turn = cf->plyNumber & 1u;
+	unsigned c, turn = cf->plyNumber & 1u;
 	/*Position oldBoard[2] = { cf->board[0], cf->board[1] }, oldPowerCheckers[4] = { cf->pc->anvil, cf->pc->bomb, cf->pc->wall, cf->pc->x2 };
 	unsigned short oldPPC = cf->playedPowerCheckers, oldStatus = cf->pum[cf->plyNumber].status;*/
 	for (c = 0; c < COLUMNS; ++c) {
@@ -434,7 +434,7 @@ int AlphaBeta_negamax_popout_withMoves(ConnectFour *cf, int currDepth, int maxDe
 
 int AlphaBeta_negamax_powerup(ConnectFour *cf, int depth, int alpha, int beta) {
 	int rootScore, branchScore;
-	unsigned c, d;
+	unsigned c;
 	/*Position oldBoard[2] = { cf->board[0], cf->board[1] }, oldPowerCheckers[4] = { cf->pc->anvil, cf->pc->bomb, cf->pc->wall, cf->pc->x2 };
 	unsigned short oldPPC = cf->playedPowerCheckers, oldStatus = cf->pum[cf->plyNumber].status;*/
 	++nodes;
@@ -949,7 +949,7 @@ void AlphaBeta_powerup_getMoveScores(ConnectFour *cf, Result *result, Result *be
 	if (!ConnectFour_gameOver(cf)) {
 		Result *anvilResults, *bombResults, *wallResults, *x2Results;
 		bool isSymmetric = ConnectFour_symmetrical(cf->board[0]) && ConnectFour_symmetrical(cf->board[1]);
-		unsigned c, d, cols = isSymmetric ? COLUMNS & 1 ? (COLUMNS >> 1) + 1 : COLUMNS >> 1 : COLUMNS;
+		unsigned c, cols = isSymmetric ? COLUMNS & 1 ? (COLUMNS >> 1) + 1 : COLUMNS >> 1 : COLUMNS;
 		anvilResults = malloc(sizeof(Result) * COLUMNS);
 		bombResults = malloc(sizeof(Result) * COLUMNS);
 		wallResults = malloc(sizeof(Result) * COLUMNS);
@@ -997,7 +997,7 @@ void AlphaBeta_powerup_getMoveScores(ConnectFour *cf, Result *result, Result *be
 			fflush(stdout);
 #endif
 			if (ConnectFour_powerup_dropBomb(cf, c)) {
-				if (ConnectFour_connection(cf->board[!(cf->plyNumber & 1)])) {
+				if (ConnectFour_connection(cf->board[cf->plyNumber & 1])) {
 					bombResults[c] = (Result){ WIN_CHAR, 0 };
 					if (isSymmetric) {
 						bombResults[COLUMNS - 1 - c].wdl = bombResults[c].wdl;
@@ -1089,7 +1089,7 @@ void AlphaBeta_powerup_getMoveScores(ConnectFour *cf, Result *result, Result *be
 			fflush(stdout);
 #endif
 			if (ConnectFour_powerup_dropX2(cf, c)) {
-				if (ConnectFour_connection(cf->board[!(cf->plyNumber & 1)])) {
+				if (ConnectFour_connection(cf->board[cf->plyNumber & 1])) {
 					x2Results[c] = (Result){ WIN_CHAR, 0 };
 					if (isSymmetric) {
 						x2Results[COLUMNS - 1 - c].wdl = x2Results[c].wdl;
@@ -1292,7 +1292,7 @@ Result AlphaBeta_normal_solve(ConnectFour *cf, const bool VERBOSE) {
 }
 
 Result AlphaBeta_popout_solve(ConnectFour *cf, const bool VERBOSE) {
-	int depth = MOVESIZE - cf->plyNumber, solution = DRAW, d;
+	int depth = (AREA >> 1u) + AREA + (AREA << 1u), solution = DRAW, d;
 	repetitionFlag = 1;
 	for (d = 0; d < depth; ++d) {
 		if (VERBOSE) {
@@ -1310,7 +1310,7 @@ Result AlphaBeta_popout_solve(ConnectFour *cf, const bool VERBOSE) {
 			}
 		}
 	}
-	return UNKNOWN_RESULT;
+	return DRAW_RESULT;
 }
 
 Result AlphaBeta_powerup_solve(ConnectFour *cf, const bool VERBOSE) {

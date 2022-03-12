@@ -57,100 +57,17 @@
 #ifndef CONNECTFOUR_H
 #define CONNECTFOUR_H
 
-// Define this macro to assign Connect Four game variants when it is defined in your compiler.
-// #define USE_MACROS
-#ifdef USE_MACROS
-
-// Predefined expressions for official Hasbro Connect Four game variants.
-#define NORMAL_VARIANT 0
-#define POPOUT_VARIANT 1
-#define POWERUP_VARIANT 2
-#define POPTEN_VARIANT 3
-#define FIVEINAROW_VARIANT 4
-
-// The gamme ruleset macro to use before running the program.
-#ifdef NORMAL_RULESET
-#undef POPOUT_RULESET
-#undef POWERUP_RULESET
-#undef POPTEN_RULESET
-#undef FIVEINAROW_RULESET
-#elif defined(POPOUT_RULESET)
-#undef POWERUP_RULESET
-#undef POPTEN_RULESET
-#undef FIVEINAROW_RULESET
-#elif defined(POWERUP_RULESET)
-#undef POPOUT_RULESET
-#undef POPTEN_RULESET
-#undef FIVEINAROW_RULESET
-#elif defined(POPTEN_RULESET)
-#undef POPOUT_RULESET
-#undef POWERUP_RULESET
-#undef FIVEINAROW_RULESET
-#elif defined(FIVEINAROW_RULESET)
-#undef POPOUT_RULESET
-#undef POWERUP_RULESET
-#undef POPTEN_RULESET
-#endif
-
-#endif
-
-// Connect Four board size dimensions and common constants. Define USE_MACROS to use the values assigned below.
-#ifdef USE_MACROS
-
-#define COLUMNS		4
-#define ROWS		4
-#define COLUMNS_M1	(COLUMNS - 1)
-#define COLUMNS_X2	(COLUMNS << 1)
-#define COLUMNS_D2	(COLUMNS >> 1)
-#define ROWS_M1		(ROWS - 1)
-#define ROWS_P1		(ROWS + 1)
-#define ROWS_P2		(ROWS + 2)
-#define AREA		(COLUMNS * ROWS)
-#define HISTORYSIZE	21
-#if defined(POPOUT_RULESET) || defined(POPTEN_RULESET)
-#define MOVESIZE	((HISTORYSIZE << 1) + (AREA << 1))
-#elif defined(POWERUP_RULESET)
-#define MOVESIZE 	(AREA + (AREA << 1))
-#else
-#define MOVESIZE	AREA
-#endif
-#define MOVESIZE_M1 MOVESIZE - 1
-
-#else
-
+// Connect Four board or grid size dimensions and common constants.
 unsigned COLUMNS, ROWS;
 unsigned COLUMNS_M1, COLUMNS_X2, COLUMNS_X2_P1, COLUMNS_D2;
 unsigned ROWS_M1, ROWS_P1, ROWS_P2;
 unsigned AREA, HISTORYSIZE, MOVESIZE, MOVESIZE_M1;
 
-#endif
-
-// Define the macro USE_MACROS to use the preprocessor board data type.
-#ifdef USE_MACROS
-
-#if (COLUMNS * ROWS_P1) <= 8
-typedef uint_fast8_t Position;
-#elif (COLUMNS * ROWS_P1) <= 16
-typedef uint_fast16_t Position;
-#elif (COLUMNS * ROWS_P1) <= 32
-typedef uint_fast32_t Position;
-#elif (COLUMNS * ROWS_P1) <= 64
-typedef uint_fast64_t Position;
-#elif (COLUMNS * ROWS_P1) <= 128
-#ifndef _MSC_VER
+// The Connect Four bitboard using a 128-bit (recompile with -DUINT_128 on GCC; MSVC uses LargePosition instead) or a 64-bit integer.
+#if defined(UINT_128) && defined(__GNUC__)
 typedef unsigned __int128 Position;
 #else
-typedef void *Position;
-#endif
-#else
-#error "The given Connect Four board size is too large to fit in 128 bits."
-#endif
-
-#else
-
-// The Connect Four bitboard using a 64-bit integer.
 typedef uint_fast64_t Position;
-
 #endif
 
 // Connect Four static bitmaps.
@@ -182,9 +99,6 @@ static Position popTenBitmap[2];
 
 // Variable to describe the Pop Ten pop status from PopTenPopStatus (Pop Ten).
 static uint8_t popTenFlags;
-
-// Variable to mark what type of disc or checker that was dropped in (Power Up).
-static uint8_t powerUpFlags;
 
 // Counter for the number of moves played while benchmarking.
 static unsigned counter;
@@ -225,15 +139,13 @@ enum PopTenPopStatus {
 
 // Flags of what type of Power Checker was dropped into the board
 enum PowerUpDropStatus {
-	POWERUP_DROP_NORMAL_OR_ANVIL = 0x1, POWERUP_DROP_BOMB = 0x2, POWERUP_DROP_WALL = 0x4, POWERUP_DROP_X2 = 0x8
+	POWERUP_DROP_NORMAL_OR_ANVIL = 0x1, POWERUP_DROP_BOMB = 0x2, POWERUP_DROP_BOMB_POP = 0x10, POWERUP_DROP_WALL = 0x4, POWERUP_DROP_X2 = 0x8
 };
 
-#ifndef USE_MACROS
 // An enumerator for official Hasbro Connect Four game variants.
 enum GameVariant {
 	NORMAL_VARIANT, POPOUT_VARIANT, POWERUP_VARIANT, POPTEN_VARIANT, FIVEINAROW_VARIANT
 };
-#endif
 
 // Structure of positions to store a bitboard of played Power Checkers.
 typedef struct PowerCheckers {
@@ -248,7 +160,7 @@ typedef struct LargePowerCheckers {
 // Structure containing a Power Up move.
 // There are five different types -- 3 bits minimum
 typedef struct PowerUpMove {
-	int status : 8, diskType : 4, normalColumn : 4, powerColumn : 4;
+	int status : 5, diskType : 4, normalColumn : 4, powerColumn : 4;
 } PowerUpMove;
 
 // Vector or dynamic array containing Pop Ten moves.
@@ -277,7 +189,7 @@ typedef struct ConnectFour {
 	unsigned plyNumber;																// The number of half-moves during a game
 	union {		// Counters
 		uint8_t playedPowerCheckers;												// An 8-bit integer storing played Power Checkers (Power Up) Format: P2(X2 WA BO AN) P1(X2 WA BO AN)
-		uint8_t historyIndex, collectedDisks;										// The number of collected disks when popping a disc (Pop Ten)
+		int8_t historyIndex, collectedDisks;										// The number of collected disks when popping a disc (Pop Ten)
 	};
 } ConnectFour;
 
@@ -292,7 +204,7 @@ void ConnectFour_setupBitmaps(void);												// Setup bitmaps to manipulate b
 void ConnectFour_initialize(ConnectFour*);											// Initialize the ConnectFour data structure. Some variants need more or less memory for required data
 void ConnectFour_reset(ConnectFour*, const bool);									// Reset the ConnectFour state to the starting position
 void ConnectFour_popten_reset(ConnectFour*, const bool);							// Reset the ConnectFour state, and set up the Pop Ten game by filling up the board
-void ConnectFour_destroy(ConnectFour*);												// Deallocate memory used by ConnectFour
+void ConnectFour_destroy(ConnectFour*);												// Deallocate memory used by the ConnectFour structure
 
 // Printing functions
 void ConnectFour_printBoard(const ConnectFour*);									// Print out a colored board to console like the real game
@@ -307,7 +219,7 @@ LargePosition ConnectFour_LargePosition_connection(const LargePosition);			// La
 LargePosition ConnectFour_LargePosition_connectionNoVertical(const LargePosition);	// Larger board version to test for a connection without testing vertical wins (PopOut)
 LargePosition ConnectFour_LargePosition_popten_connection(const LargePosition);		// Larger board version to see if the bottom disk is part of a connection (Pop Ten)
 bool ConnectFour_hasTenDisks(const ConnectFour*);									// Check if a player has collected ten disks (Pop Ten)
-uint8_t ConnectFour_repeatIndex(const uint8_t);										// Return the previous index where a possible duplication may occur (PopOut, Pop Ten)
+int8_t ConnectFour_repeatIndex(const int8_t);										// Return the previous index where a possible duplication may occur (PopOut, Pop Ten)
 bool ConnectFour_repetition(const ConnectFour*);									// True if the position was repeated three times, false otherwise. Another possibility was when the same position is reached but mirrored
 bool ConnectFour_gameOver(const ConnectFour*);										// Determine if the game is over depending on the ruleset
 
@@ -373,8 +285,8 @@ void ConnectFour_displayHelpMessage(char*);											// Display the help messag
 bool ConnectFour_symmetrical(const Position);										// Return true if the position is horizontally symmetrical
 
 // Move history functions
-uint8_t ConnectFour_previousHistory(const uint8_t);									// Increment the history index (PopOut)
-uint8_t ConnectFour_nextHistory(const uint8_t);										// Decrement the history index (PopOut)
+int8_t ConnectFour_previousHistory(const int8_t);									// Increment the history index (PopOut)
+int8_t ConnectFour_nextHistory(const int8_t);										// Decrement the history index (PopOut)
 void ConnectFour_addHistory(ConnectFour*);											// Append the position to the move history and increment the history index (PopOut)
 void ConnectFour_clearHistory(ConnectFour*);										// Clear out the move history and reset the history index to zero (PopOut)
 

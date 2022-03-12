@@ -84,15 +84,13 @@ typedef struct {
 	unsigned numRecords;			// Books at its current state can have up to about 4 billion entries
 } BookFile;
 
-/*enum BookRecord {
-	LOSS_RECORD, DRAW_RECORD, WIN_RECORD, NO_RECORD = 0xff
-};*/
+typedef struct UniqueTable { Position *entry; long long size; } UniqueTable;
 
 // Global variables to control opening book generation
 BookFile bookFile;			// An instance of the BookFile structure that does all the literacy work
 unsigned currentEntries;    // The number of entries that is currently in the book
 size_t hashBytes;			// A indicator of how many bytes required to encode a Connect Four position
-bool subMovesNotInBook, subMovesEntryStatus;
+bool subMovesNotInBook;
 
 // Functions on file operations
 bool BookFile_create(char*);									// Open a file for creating an opening book or database
@@ -104,7 +102,7 @@ void BookFile_popout_append(FILE*, ConnectFour*, Result*);		// Append solutions 
 
 // Searching functions
 bool BookFile_retrieve(char*, ConnectFour*, Position, Result*, Result*);					// Retrieve an entry from the book and store that result to a variable
-bool BookFile_normal_retrieve(FILE*, ConnectFour*, Position, Result*, int*, int, bool);		// Retrieve a normal ruleset entry from the book if it exists
+bool BookFile_normal_retrieve(FILE*, ConnectFour*, Position, Result*, int*);				// Retrieve a normal ruleset entry from the book if it exists
 bool BookFile_popout_retrieve(FILE*, ConnectFour*, Position, Result*, int*, int, bool);		// Retrieve a PopOut ruleset entry from the book if it exists
 int BookFile_hashLookup(FILE*, ConnectFour*, Position, bool);								// Search through the book for matching entries given a Connect Four hash
 
@@ -112,11 +110,12 @@ int BookFile_hashLookup(FILE*, ConnectFour*, Position, bool);								// Search t
 bool BookFile_generateBook(char*, ConnectFour*, unsigned);												// Generate book entries depending on the Connect Four variant
 void BookFile_normal_generateEntries(FILE*, ConnectFour*, unsigned);									// Generate normal entries and append them to the book against limited moves
 void BookFile_popout_generateEntries(FILE*, ConnectFour*, Result*, unsigned);							// Generate PopOut entries and append them to the book against limited moves
-bool BookFile_storeToTranspositionTable(char*, ConnectFour*, TranspositionTable*);						// Store book entries to the transposition table memory for faster access time
+bool BookFile_storeToTranspositionTable(char*, ConnectFour*, TranspositionTable*, const bool);			// Store book entries to the transposition table memory for faster access time
 int BookFile_loadFromTranspositionTable(char*, TranspositionTable*, Position, Result*);
 bool BookFile_loadSubMovesFromTranspositionTable(char*, ConnectFour*, TranspositionTable*, Result*);
-bool BookFile_checkVaildEntry(char*, ConnectFour*, TranspositionTable*, int);							// Check whether the book file is valid: all unique moves have their entries
-bool BookFile_normal_checkVaildEntry(char*, ConnectFour*, TranspositionTable*, int);
+bool BookFile_checkVaildEntry(char*, ConnectFour*, TranspositionTable*, unsigned);							// Check whether the book file is valid: all unique moves have their entries
+bool BookFile_normal_checkVaildEntry(char*, ConnectFour*, TranspositionTable*, unsigned);
+bool BookFile_popout_checkVaildEntry(char*, ConnectFour*, TranspositionTable*, unsigned);
 
 // The book stores game solutions in a different manner; convert it to a Result that the solver can understand
 int8_t BookFile_normal_convertToEntry(Result*);		// Convert a Result to a book entry (Normal)

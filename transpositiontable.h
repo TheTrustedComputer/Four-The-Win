@@ -47,7 +47,7 @@ static unsigned tableSize;
 bool bookEntryFound;
 
 bool TranspositionTable_isPrime(long long);
-unsigned TranspositionTable_isPrevNumPrime(long long);
+long long TranspositionTable_isPrevNumPrime(long long);
 
 bool TranspositionTable_initialize(TranspositionTable*, long long);
 void TranspositionTable_reset(TranspositionTable*);

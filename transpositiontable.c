@@ -9,7 +9,7 @@ bool TranspositionTable_isPrime(long long n) {
 	}
 
 	// Check every odd number and test if prime
-	for (i = 3; i * i <= n; i += 2) {
+	for (i = 3ll; i * i <= n; i += 2) {
 		if (!(n % i)) { // (n mod p)=0 is not prime
 			return false;
 		}
@@ -17,15 +17,24 @@ bool TranspositionTable_isPrime(long long n) {
 	return true;
 }
 
-unsigned TranspositionTable_isPrevNumPrime(long long n) {
+long long TranspositionTable_isPrevNumPrime(long long n) {
 	// If n is even, then subtract two; otherwise subtract one
-	n = n & 1 ? n - 2 : n - 1;
+	n = n & 1ll ? n - 2ll : n - 1ll;
 
 	// Test for primality until there is a prime
 	while (!TranspositionTable_isPrime(n)) {
-		n -= 2;
+		n -= 2ll;
 	}
 	return n;
+}
+
+long long TranspositionTable_getPrimeClosestAndGreaterThanPowerOf2(long long n) {
+	long long power = 1ll;
+
+	while ((power <= n) && !TranspositionTable_isPrime(n)) {
+		power <<= 1ll;
+	}
+	return power;
 }
 
 void TranspositionTable_reset(TranspositionTable *tt) {
@@ -190,32 +199,26 @@ bool TranspositionTable_powerup_depthEquality(TranspositionTable *tt, Position k
 }
 
 int TranspositionTable_isUnique(TranspositionTable *tt, Position hash) {
-	int i = hash % tt->size, j;
-	if (tt->entries[i].key) { // Hash entry
+	long long i = hash % tt->size, j;
+	if (tt->entries[i].key) { // Look up a valid hash entry
 		if (tt->entries[i].key == hash) { // Exact match
 			return 1;
 		}
 		else { // Hash collision and linear probing
-			for (j = 1; tt->entries[i + j].key && i + j != i; ++j) { // End condition when we have looped
-				if ((i + j) == tt->size) { // Reached the end of the table--wrap around to zero
-					j = -i;
+			for (j = i + 1; tt->entries[j].key && j != i;) { // End condition when we have looped over
+				if (tt->entries[j].key == hash) { // Collision with a match
+					return 2;
+				}
+				if (++j == tt->size) { // Reached the end of the table; now wrap around to zero
+					j = 0;
 					continue;
 				}
-				if (tt->entries[i + j].key == hash) { // Collision with a match
-					return 1;
-				}
 			}
-			if (!tt->entries[i + j].key) { // There is free space for additional entries
-				tt->entries[i + j].key = hash;
-				return 0;
-			}
-			else { // Table has no more room for more entries
-				return -1;
-			}
+			return 0; // Table has no more room for more entries
 		}
 	}
 	else { // No hash entry
-		tt->entries[i].key = hash;
+		//tt->entries[i].key = hash;
 		return 0;
 	}
 }
@@ -225,7 +228,7 @@ bool TranspositionTable_BookFile_store(TranspositionTable *tt, Position key, int
 	long long i = key % tt->size, j = i + 1;
 
 	// Is there already an existing entry in the transposition table?
-	if (tt->entries[i].key) {
+	if (tt->entries[i].key && tt->entries[i].key != key) {
 		while (j != i) { // Continue until wraparound
 			if (!tt->entries[j].key) { // Check if there is an empty entry following the previous entry then add
 				tt->entries[j].key = key;

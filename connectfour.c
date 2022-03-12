@@ -57,8 +57,8 @@ void ConnectFour_setSizeAndVariant(unsigned newColumns, unsigned newRows, unsign
 	switch (GAME_VARIANT) {
 	case POPOUT_VARIANT:
 	case POPTEN_VARIANT:
-		HISTORYSIZE = 33u;
-		MOVESIZE = (GAME_VARIANT == POPOUT_VARIANT) ? HISTORYSIZE + (AREA << 1u) : (HISTORYSIZE << 4u) + (AREA << 5u);
+		HISTORYSIZE = 41u;
+		MOVESIZE = (GAME_VARIANT == POPOUT_VARIANT) ? (HISTORYSIZE << 5u) + (AREA << 6u) : (HISTORYSIZE << 6u) + (AREA << 7u);
 		break;
 	case POWERUP_VARIANT:
 		MOVESIZE = AREA + (AREA << 1u);
@@ -393,7 +393,7 @@ void ConnectFour_printBoard(const ConnectFour *cf) {
 
 void ConnectFour_printMoves(const ConnectFour *cf) {
 	for (unsigned i = 0; i < cf->plyNumber; ++i) {
-		printf("%c", (cf->moves[i] < COLUMNS) ? cf->moves[i] + '1' : cf->moves[i] - COLUMNS + 'A');
+		printf("%c", (cf->moves[i] < COLUMNS) ? (unsigned)(cf->moves[i] + '1') : cf->moves[i] - COLUMNS + 'A');
 	}
 }
 
@@ -476,12 +476,12 @@ bool ConnectFour_hasTenDisks(const ConnectFour *cf) {
 	return (popTenFlags == POPTEN_POP_CONNECTION) ? ((cf->plyNumber & 1u) ? ((cf->collectedDisks & 0xf0) >= 0xa0) : ((cf->collectedDisks & 0xf) >= 0xa)) : false;
 }
 
-uint8_t ConnectFour_repeatIndex(const uint8_t index) {
-	return index - 4 < 0 ? index + HISTORYSIZE - 4 : index - 4;
+int8_t ConnectFour_repeatIndex(const int8_t index) {
+	return (index - 4 < 0) ? (index + (int8_t)(HISTORYSIZE - 4)) : (index - 4);
 }
 
 bool ConnectFour_repetition(const ConnectFour *cf) {
-	uint8_t first, second, third, fourth, fifth, sixth, seventh, eighth;
+	uint8_t first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth;
 	Position hash = ConnectFour_getHashKey(cf), mirrorHash = ConnectFour_reverse(hash);
 	first = ConnectFour_previousHistory(cf->historyIndex);
 	second = ConnectFour_repeatIndex(first);
@@ -491,12 +491,14 @@ bool ConnectFour_repetition(const ConnectFour *cf) {
 	sixth = ConnectFour_repeatIndex(fifth);
 	seventh = ConnectFour_repeatIndex(sixth);
 	eighth = ConnectFour_repeatIndex(seventh);
-	return (hash == cf->history[first] && hash == cf->history[second] && hash == cf->history[third] && hash == cf->history[fourth] &&
-			 hash == cf->history[fifth] && hash == cf->history[sixth] && hash == cf->history[seventh] && hash == cf->history[eighth]) ||
-		(hash == cf->history[first] && mirrorHash == cf->history[second] && hash == cf->history[third] && mirrorHash == cf->history[fourth] &&
-		 hash == cf->history[fifth] && mirrorHash == cf->history[sixth] && hash == cf->history[seventh] && mirrorHash == cf->history[eighth]) ||
-		(mirrorHash == cf->history[first] && hash == cf->history[second] && mirrorHash == cf->history[third] && hash == cf->history[fourth] &&
-		 mirrorHash == cf->history[fifth] && hash == cf->history[sixth] && mirrorHash == cf->history[seventh] && hash == cf->history[eighth]);
+    ninth = ConnectFour_repeatIndex(eighth);
+    tenth = ConnectFour_repeatIndex(ninth);
+	return (hash == cf->history[first] && hash == cf->history[second] && hash == cf->history[third] && hash == cf->history[fourth] && hash == cf->history[fifth] &&
+			 hash == cf->history[sixth] && hash == cf->history[seventh] && hash == cf->history[eighth] && hash == cf->history[ninth] && hash == cf->history[tenth]) ||
+		(hash == cf->history[first] && mirrorHash == cf->history[second] && hash == cf->history[third] && mirrorHash == cf->history[fourth] && hash == cf->history[fifth] &&
+		 mirrorHash == cf->history[sixth] && hash == cf->history[seventh] && mirrorHash == cf->history[eighth] && hash == cf->history[ninth] && mirrorHash == cf->history[tenth]) ||
+		(mirrorHash == cf->history[first] && hash == cf->history[second] && mirrorHash == cf->history[third] && hash == cf->history[fourth] && mirrorHash == cf->history[fifth] &&
+        hash == cf->history[sixth] && mirrorHash == cf->history[seventh] && hash == cf->history[eighth] && mirrorHash == cf->history[ninth] && hash == cf->history[tenth]);
 }
 
 bool ConnectFour_gameOver(const ConnectFour *cf) {
@@ -1250,7 +1252,7 @@ unsigned ConnectFour_getMoveSize(void) {
 }
 
 void ConnectFour_displayHelpMessage(char *exeName) {
-	printf("%s [ -h | -B | -b | -e | -g [LENGTH] | -p [POWER] | -s [COLUMNS]x[ROWS] | -t [ENTRIES] | -v [VARIANT] | [MOVES] ]\n", exeName);
+	printf("Usage: %s [switch] [ARGUMENT]\n\n", exeName);
 	puts("Versatile Connect Four solver capable of solving several variants.\nFour the Win! accepts the following command-line switches below:\n");
 	puts(" -h -? --help\tPrints this detailed help message to the console and then exit.\n");
 	puts(" -B --best\tObtains best move instead of depth to winning connection.\n");
@@ -1268,10 +1270,10 @@ void ConnectFour_displayHelpMessage(char *exeName) {
 	puts("\t\tincorrect size argument was provided, then it is set to the");
 	puts("\t\tstandard size.\n");
 	puts(" -t --table\tPrepares the transposition hash table entries of [ENTRIES] in");
-	puts("\t\tgigabytes. It is allocated to use as much as your system's");
-	puts("\t\tmemory without this switch. The minimal is one gigabyte, and");
-	puts("\t\tthere is no maximal. If zero or a negative gigabyte value was");
-	puts("\t\tsupplied, then it is assigned to the smallest allowable value.\n");
+	puts("\t\tgigabytes. It is allocated to use half of your system's memory");
+	puts("\t\twithout this switch. The minimal is one gigabyte, and there is");
+	puts("\t\tno maximal. If zero or a negative gigabyte value was supplied,");
+	puts("\t\tthen it is assigned to the smallest allowable value.\n");
 	puts(" -v --variant\tSelects a variant given [VARIANT]. If no variant or an invalid");
 	puts("\t\tvariant is passed in Four the Win!, then the normal variant is");
 	puts("\t\tused. Otherwise, it must be one of the five options: normal");
@@ -1283,18 +1285,16 @@ void ConnectFour_displayHelpMessage(char *exeName) {
 	puts("\t\tAssuming a size less than ten columns wide, drop moves range");
 	puts("\t\tfrom leftmost 1 to rightmost 9, and pop moves from A to I");
 	puts("\t\trespectively. Pop moves are case-insensitive.\n");
-	puts(" [POWER]\tPower Checker quantity. It is a single digit between one and two");
-	puts("\t\tinclusive.\n");
 	puts(" [ROWS]\t\tThe number of rows, or the height of the playing field.\n");
 	puts(" [VARIANT]\tThe supported variants to choose from as mentioned above.");
 }
 
-uint8_t ConnectFour_previousHistory(const uint8_t current) {
-	return !(current) ? HISTORYSIZE - 1u : current - 1u;
+int8_t ConnectFour_previousHistory(const int8_t current) {
+	return !(current) ? ((int8_t)(HISTORYSIZE) - 1) : (current - 1);
 }
 
-uint8_t ConnectFour_nextHistory(const uint8_t current) {
-	return current + 1u < HISTORYSIZE ? current + 1u : 0u;
+int8_t ConnectFour_nextHistory(const int8_t current) {
+	return (current + 1 < (int8_t)(HISTORYSIZE)) ? (current + 1) : 0;
 }
 
 void ConnectFour_addHistory(ConnectFour *cf) {

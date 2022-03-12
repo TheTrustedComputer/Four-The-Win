@@ -38,8 +38,6 @@
 #include "alphabeta.c"
 #include "book.c"
 
-#define CF_PRINTBOARD system("cls"); ConnectFour_printBoard(connectFour);
-
 /** GUI Win32 main entry point **/
 #ifdef _WIN32
 /*
@@ -77,17 +75,13 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 */
 #endif
 
-#ifdef _MSC_VER
-// #define USE_FIXED_TTSIZE
-#define SCORE_TEST
-#endif
-
+// Common string macros
 #define DRAWN_OR_WON_POSITION "Terminal position (drawn or won)."
 #define POSSIBLE_DRAW "\e[1mPossible DRAW by repetition\e[0m (%d)\n"
 
 // Function to handle the interrupt signal
 void SignalTrapper(int Q) {
-	printf("Interrupted. %d\n", Q);
+	printf("Interrupt.\n");
 	exit(0);
 }
 
@@ -104,7 +98,7 @@ int main(int argc, char **argv) {
 	double npsec, sec; // Nodes or positions per seconds; time in seconds spent solving
 
 	// An opening book to remember solutions afterward
-	bool startMainFlag, startPopTenFlag, hasUndone, hasRedone, solvingFlag, bestFlag, useBookFlag, generateBookFlag;
+	bool startMainFlag, startPopTenFlag, hasUndone, hasRedone, solvingFlag, bestFlag, useBookFlag, generateBookFlag, storingEntriesToTable;
 	unsigned m, bestMove, variant;
 	char input, bookFileName[22], *argSequence;
 	int bookEntryStatus, bookSubMovesEntryStatus, argBookDepth, argTableSize, redoBufferPointer;
@@ -121,7 +115,7 @@ int main(int argc, char **argv) {
 	pthread_t SolverThread;
 
 	/* Start of main function begins here */
-	solvingFlag = startPopTenFlag = true;
+	solvingFlag = startPopTenFlag = storingEntriesToTable = true;
 	bestFlag = useBookFlag = generateBookFlag = hasUndone = hasRedone = false;
 	results = NULL;
 	moveOrder = NULL;
@@ -138,7 +132,7 @@ int main(int argc, char **argv) {
 	{
 		// Default valuse
 		int argColumns, argRows, argVariant;
-		bool sizeNotDone = true, variantNotDone = true, bestNotDone = true, bookNotDone = true, generateNotDone = true, tableNotDone = true, powerCheckNotDone = true;
+		bool sizeNotDone = true, variantNotDone = true, bestNotDone = true, bookNotDone = true, generateNotDone = true, tableNotDone = true;
 		argColumns = 7;
 		argRows = 6;
 		argVariant = NORMAL_VARIANT;
@@ -176,7 +170,7 @@ int main(int argc, char **argv) {
 									}
 								}
 								if (((intColumns = atoi(charArgColumns)) && (intRows = atoi(charArgRows)))) {
-									if (((intColumns >= 4) || (intRows >= 4)) && ((intColumns <= 16) || (intRows <= 16)) && (intColumns * (intRows + 1) <= 64)) {
+									if (((intColumns >= 4) && (intRows >= 4)) && ((intColumns <= 16) && (intRows <= 16)) && (intColumns * (intRows + 1) <= 64)) {
 										argColumns = intColumns;
 										argRows = intRows;
 									}
@@ -236,23 +230,9 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-// Use variant depending on compiler macros
-#ifdef USE_MACROS
-#ifdef NORMAL_RULESET
-		variant = NORMAL_VARIANT;
-#elif defined(POPOUT_RULESET)
-		variant = POPOUT_VARIANT;
-#elif defined(POWERUP_RULESET)
-		variant = POWERUP_VARIANT;
-#elif defined(POPTEN_RULESET)
-		variant = POPTEN_VARIANT;
-#elif defined(FIVEINAROW_RULESET)
-		variant = FIVEINAROW_VARIANT;
-#endif
-#else
+
 		// The default variant is normal Connect Four unless given command-line switches
 		variant = argVariant;
-#endif
 
 		// Initialize the ConnectFour structure and therefore the game itself
 		ConnectFour_setSizeAndVariant(argColumns, argRows, variant);
@@ -269,7 +249,7 @@ int main(int argc, char **argv) {
 					halfGigabytes = totalGigabytes /= 2;
 				}
 				else {
-					fprintf(stderr, "WARNING: Could not determine system memory size; defaulting to one gigabyte.\n");
+					fprintf(stderr, "WARNING: Could not determine system memory size; fallback to one gigabyte.\n");
 					halfGigabytes = 1ull;
 				}
 				for (table.entries = NULL; halfGigabytes && !table.entries;) {
@@ -288,7 +268,7 @@ int main(int argc, char **argv) {
 					halfGigabytes = totalGigabytes / 2;
 				}
 				else {
-					fprintf(stderr, "WARNING: Could not determine system memory size; defaulting to one gigabyte.\n");
+					fprintf(stderr, "WARNING: Could not determine system memory size; fallback to one gigabyte.\n");
 					halfGigabytes = 1ul;
 				}
 				for (table.entries = NULL; halfGigabytes && !table.entries;) {
@@ -302,7 +282,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		else { // Use a transposition table size from command-line arguments or an automatic one
-			TranspositionTable_initialize(&table, (tableSize = argTableSize * TT_TABLESIZE));
+			(GAME_VARIANT == POWERUP_VARIANT) ?  TranspositionTable_initialize(&table, (tableSize = argTableSize * TT_TABLESIZE / 3)) : TranspositionTable_initialize(&table, (tableSize = argTableSize * TT_TABLESIZE));
 		}
 	}
 
@@ -392,7 +372,7 @@ int main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		}
 		else {
-			for (int b = 0; b < MOVESIZE; ++b) {
+			for (unsigned b = 0u; b < MOVESIZE; ++b) {
 				ConnectFour_initialize(&redoBuffer[b]);
 			}
 		}
@@ -473,10 +453,10 @@ int main(int argc, char **argv) {
 	for (startMainFlag = true; startMainFlag;) {
 		if (useBookFlag && !bestFlag) {
 			// Add book entries to the transposition table
-			if (!BookFile_storeToTranspositionTable(bookFileName, &connectFour, &table)) {
+			if (!BookFile_storeToTranspositionTable(bookFileName, &connectFour, &table, storingEntriesToTable)) {
 				fprintf(stderr, "Could not open the book file for storing entries to the transposition table.\n");
 			}
-			BookFile_checkVaildEntry(bookFileName, &connectFour, &table, 4);
+			storingEntriesToTable = false;
 		}
 		if (argc >= 2 && argSequence[0] != '\0') {
 			if (!ConnectFour_sequence(&connectFour, argSequence)) {
@@ -530,7 +510,7 @@ int main(int argc, char **argv) {
 					}
 				}
 				else {
-					if (GAME_VARIANT == POPTEN_VARIANT && (redoBufferPointer + 1) < MOVESIZE) {
+					if (GAME_VARIANT == POPTEN_VARIANT && (redoBufferPointer + 1) < (int)(MOVESIZE)) {
 						ConnectFour_popten_copy(&connectFour, &redoBuffer[++redoBufferPointer]);
 						popTenFlagRedoBuffer[redoBufferPointer] = popTenFlags;
 					}
@@ -733,7 +713,7 @@ int main(int argc, char **argv) {
 
 		// No erroneous results depending on the game
 		if (GAME_VARIANT != POPTEN_VARIANT && GAME_VARIANT != POWERUP_VARIANT) {
-			assert((result.wdl == WIN_CHAR) && !(result.dtc & 1) || (result.wdl == LOSS_CHAR) && (result.dtc & 1) || (result.wdl == DRAW_CHAR));
+			assert((result.wdl == WIN_CHAR) && !(result.dtc & 1) || (result.wdl == LOSS_CHAR) && (result.dtc & 1) || (result.wdl == DRAW_CHAR) || (result.wdl == UNKNOWN_CHAR));
 		}
 		if (result.wdl == DRAW_CHAR) {
 			printf("\e[1;33m%s\e[0m ", DRAW_TEXT);
