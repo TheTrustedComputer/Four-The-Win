@@ -17,10 +17,11 @@ CPU_ARCH = native
 # Uncomment to use LLVM Clang, and comment the one containg GCC (recommended).
 #CC = clang
 CC = gcc
-CFLAGS = -Ofast -g -Wall -Wextra -march=${CPU_ARCH} ${UINT_128} -lpthread -lm
+CFLAGS = -Ofast -g -Wall -Wextra -march=${CPU_ARCH} ${UINT_128}
 SOURCES = main.c
 OUTPUT = -o FourTheWin
+LIBRARIES = -lpthread -lm
 
 # A general yet simple build script.
 build:
-	${CC} ${CFLAGS} ${SOURCES} ${OUTPUT}
+	${CC} ${CFLAGS} ${SOURCES} ${LIBRARIES} ${OUTPUT}
