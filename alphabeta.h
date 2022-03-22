@@ -18,29 +18,10 @@
 #ifndef ALPHABETA_H
 #define ALPHABETA_H
 
-// Static string constants to know which side wins or loses
-static const char WIN_TEXT[] = "WIN";
-static const char LOSS_TEXT[] = "LOSS";
-static const char DRAW_TEXT[] = "DRAW";
-static const char NONE_TEXT[] = "-- ";
-static const char SEARCHING_STRING[] = "\rSolving...%d\r";
-static const char FOUND_STRING[] = "Result found!\n";
-static const char NOT_FOUND_STRING[] = "Result not found under %d %s; a draw is assumed.\n";
-static const char REPETITION_STRING[] = "Encountered move repetition";
-
 // Some of the few constants used for negamax
 enum AlphaBetaResult {
 	DRAW, DRAW_WIN, IN_PROGRESS, PLAYER_WIN
 };
-
-// Custom defined literals for the result character in the Result data structure
-enum ResultChar {
-	UNKNOWN_CHAR = '?', LOSS_CHAR = 'L', DRAW_CHAR = 'D', WIN_CHAR = 'W'
-};
-
-// Common macro definitions for a resultant value
-#define UNKNOWN_RESULT (Result) {UNKNOWN_CHAR, -1}
-#define DRAW_RESULT (Result) {DRAW_CHAR, -1}
 
 // Macro for an upper bound win score
 #define WIN_SCORE 10000
@@ -58,15 +39,6 @@ static Position hashKey;
 static int *moveOrder, tableScore, repetitionFlag;
 
 RepetitionTable rTable;
-
-/*
-	A small structure for obtaining the result of negamax to the user. Negamax itself returns a signed integer which may not be useful for the end-user.
-	The structure, for example, will display itself as W50 where W is a winning condition and 50 is the number of plies to that winning move.
-*/
-typedef struct {
-	char wdl;		// Win, draw, and loss
-	uint8_t dtc;	// Depth to connection
-} Result;
 
 /*
 	Structure for sorting move values of a given position. It does insertion sort after every addition as this sorting algorithm processes best when the input is sorted.
@@ -105,12 +77,5 @@ Result AlphaBeta_popten_solve(ConnectFour*, const bool);
 
 void MoveSorter_addToEntry(MoveSorter*, const int, const int);
 int MoveSorter_obtainNextMove(MoveSorter*);
-
-void Result_print(Result*, Result*);
-void Result_increment(Result*);
-void Result_normal_reverse(Result*);
-void Result_popout_reverse(Result*);
-Result Result_getBestResult(Result*, unsigned);
-unsigned Result_getBestMove(Result*, unsigned);
 
 #endif

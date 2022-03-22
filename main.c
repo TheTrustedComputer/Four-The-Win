@@ -35,6 +35,7 @@
 #include "largeboard.c"
 #include "connectfour.c"
 #include "transpositiontable.c"
+#include "result.c"
 #include "alphabeta.c"
 #include "book.c"
 
@@ -130,7 +131,7 @@ int main(int argc, char **argv) {
 
 	// Read command-line arguments and change program behavior accordingly
 	{
-		// Default valuse
+		// Default values
 		int argColumns, argRows, argVariant;
 		bool sizeNotDone = true, variantNotDone = true, bestNotDone = true, bookNotDone = true, generateNotDone = true, tableNotDone = true;
 		argColumns = 7;
@@ -139,7 +140,7 @@ int main(int argc, char **argv) {
 		argTableSize = 1;
 
 		// Allocate a buffer to copy move parameters from the program
-		if (!(argSequence = calloc(1, sizeof(argSequence) * MOVESIZE))) {
+		if (!(argSequence = calloc(1, sizeof(*argSequence) * ((argColumns * argRows) << 1)))) {
 			fprintf(stderr, "Error loading moves from command-line arguments.\n");
 			exit(EXIT_FAILURE);
 		}

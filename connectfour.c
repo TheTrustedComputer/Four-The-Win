@@ -58,7 +58,7 @@ void ConnectFour_setSizeAndVariant(unsigned newColumns, unsigned newRows, unsign
 	case POPOUT_VARIANT:
 	case POPTEN_VARIANT:
 		HISTORYSIZE = 41u;
-		MOVESIZE = (GAME_VARIANT == POPOUT_VARIANT) ? (HISTORYSIZE << 5u) + (AREA << 6u) : (HISTORYSIZE << 6u) + (AREA << 7u);
+		MOVESIZE = (HISTORYSIZE << 5u) + (AREA << 6u);
 		break;
 	case POWERUP_VARIANT:
 		MOVESIZE = AREA + (AREA << 1u);
