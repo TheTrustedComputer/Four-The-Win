@@ -11,7 +11,7 @@ My program confirmed his analysis, and with perfect play, under the PopOut rules
 Fully solving Power Up is doable but greatly slows down the search algorithm as the power discs or checkers increase the branching factor by a large margin. Whereas in Pop Ten, there is no unique starting position. All possible combinations of dropping alternating discs row by row is required to completely solve this variant.
 
 ## Features
-Four the Win! can solve the original game as well as all four Hasbro variants mentioned above. It is impossible to play against it because this is a game solver, not a game-playing engine.
+Four the Win! can solve the original game as well as all four Hasbro variants mentioned above. It is unintuitive to play against it because this is a game solver, not a game-playing engine.
 
 It utilizes bitboards to represent Connect Four which is much more efficient in manipulation than arrays. Additionally, pointers and unions are applied to reduce the memory footprint for this data structure.
 
