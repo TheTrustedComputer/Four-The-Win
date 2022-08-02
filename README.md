@@ -44,4 +44,4 @@ To be announced.
 Four the Win! is mostly working as intended. Feel free to contribute since I am still working on this project although slowly. If you discover any bugs in my program, then please open an issue, and I will attempt to debug them. It is not guaranteed I will fix all given issues in a timely manner.
 
 ## Licensing
-Four the Win! is licensed under the MIT. Please read any licenses on how to incoporate Four the Win! to your projects.
+Four the Win! is licensed under the MIT. Please read any licenses on how to incorporate Four the Win! to your projects.
